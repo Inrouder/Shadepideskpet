@@ -58,6 +58,128 @@ def fit(im: Image.Image, longest: int) -> Image.Image:
     return im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
 
 
+def _components(alpha, w, h, thr=32):
+    labels = [0] * (w * h)
+    sizes = [0]
+    comp = 0
+    for start in range(w * h):
+        if alpha[start] < thr or labels[start]:
+            continue
+        comp += 1
+        labels[start] = comp
+        stack, n = [start], 0
+        while stack:
+            i = stack.pop(); n += 1
+            x, y = i % w, i // w
+            for j in ((i - 1) if x else -1, (i + 1) if x + 1 < w else -1, (i - w) if y else -1, (i + w) if y + 1 < h else -1):
+                if j >= 0 and not labels[j] and alpha[j] >= thr:
+                    labels[j] = comp; stack.append(j)
+        sizes.append(n)
+    return labels, sizes, comp
+
+
+def isolate_frame(sheet, region, pad=70):
+    """Figur aus ihrer Zelle lösen: eigene Fläche behalten (auch über die Zellgrenze ragende
+    Klingenspitzen), Bruchstücke der Nachbarbilder entfernen. Gibt Bild + Versatz zurück."""
+    x0, y0, w0, h0 = region
+    X0, Y0 = max(0, x0 - pad), max(0, y0 - 10)
+    X1, Y1 = min(sheet.width, x0 + w0 + pad), min(sheet.height, y0 + h0 + 10)
+    crop = sheet.crop((X0, Y0, X1, Y1))
+    w, h = crop.size
+    alpha = crop.getchannel("A").tobytes()
+    labels, sizes, comp = _components(alpha, w, h)
+    if not comp:
+        return crop, (X0, Y0)
+    # Fläche mit den meisten Pixeln innerhalb der eigenen Zelle
+    inside = [0] * (comp + 1)
+    for i, l in enumerate(labels):
+        if l:
+            x, y = i % w + X0, i // w + Y0
+            if x0 <= x < x0 + w0 and y0 <= y < y0 + h0:
+                inside[l] += 1
+    main = max(range(1, comp + 1), key=inside.__getitem__)
+    # nahe kleine Teile (Mündungsfeuer, lose Haarsträhnen) dazunehmen, wenn sie die Hauptfläche fast berühren
+    keep = {main}
+    mx = [w, h, 0, 0]
+    for i, l in enumerate(labels):
+        if l == main:
+            x, y = i % w, i // w
+            mx = [min(mx[0], x), min(mx[1], y), max(mx[2], x), max(mx[3], y)]
+    boxes = {}
+    for i, l in enumerate(labels):
+        if l and l != main:
+            x, y = i % w, i // w
+            b = boxes.get(l, [x, y, x, y])
+            boxes[l] = [min(b[0], x), min(b[1], y), max(b[2], x), max(b[3], y)]
+    for l, b in boxes.items():
+        near = b[0] <= mx[2] + 6 and b[2] >= mx[0] - 6 and b[1] <= mx[3] + 6 and b[3] >= mx[1] - 6
+        cx = (b[0] + b[2]) / 2 + X0
+        if near and inside[l] > 0 and sizes[l] >= 80 and x0 + 8 < cx < x0 + w0 - 8:
+            keep.add(l)
+    from collections import deque
+    mask = bytearray(w * h)
+    q = deque()
+    for i, l in enumerate(labels):
+        if l in keep:
+            mask[i] = 1; q.append((i, 0))
+    while q:
+        i, d = q.popleft()
+        if d >= 8:
+            continue
+        x, y = i % w, i // w
+        for j in ((i - 1) if x else -1, (i + 1) if x + 1 < w else -1, (i - w) if y else -1, (i + w) if y + 1 < h else -1):
+            if j >= 0 and not mask[j] and alpha[j] and not labels[j]:
+                mask[j] = 1; q.append((j, d + 1))
+    m = Image.frombytes("L", (w, h), bytes(a if k else 0 for a, k in zip(alpha, mask)))
+    crop.putalpha(m)
+    box = m.getbbox() or (0, 0, w, h)
+    return crop.crop(box), (X0 + box[0], Y0 + box[1])
+
+
+def pack_brothers(src, actors):
+    """Oni, Roboterkopf, Ly und den schweren MG-Krieger für den Dojo-Modus neu packen:
+    Stand/Laufen nur vorn, links, rechts; die ganze Kampffolge (rechts blickend)."""
+    sheets = {
+        "idle": Image.open(src / "assets/memories/attack/warriors-ready.png").convert("RGBA"),
+        "run_a": Image.open(src / "assets/memories/attack/warriors-run.png").convert("RGBA"),
+        "run_b": Image.open(src / "assets/memories/attack/warriors-run.png").convert("RGBA"),
+        "combat": Image.open(src / "assets/memories/attack/combat.png").convert("RGBA"),
+    }
+    half = 0.5
+    frames, out = [], {}
+    for who in ["oni", "robot", "ly", "heavy"]:
+        out[who] = {}
+        for state, idxs in [("idle", [0, 1, 2]), ("run_a", [1, 2]), ("run_b", [1, 2]), ("combat", list(range(8)))]:
+            out[who][state] = {}
+            for i in idxs:
+                e = actors[who][state][i]
+                img, (ox, oy) = isolate_frame(sheets[state], e["region"])
+                img = img.resize((max(1, round(img.width * half)), max(1, round(img.height * half))), Image.LANCZOS)
+                ax = (e["region"][0] + e["anchor"][0] - ox) * half
+                ay = (e["region"][1] + e["anchor"][1] - oy) * half
+                frames.append((who, state, i, img, ax, ay, e["scale"] / half))
+    # Regalpacken in eine Textur
+    W = 2048
+    x = y = rowh = 0
+    placed = []
+    for f in sorted(frames, key=lambda t: -t[3].height):
+        img = f[3]
+        if x + img.width + 2 > W:
+            x, y, rowh = 0, y + rowh + 2, 0
+        placed.append((f, x, y))
+        x += img.width + 2
+        rowh = max(rowh, img.height)
+    atlas = Image.new("RGBA", (W, y + rowh + 2))
+    for (who, state, i, img, ax, ay, sc), px, py in placed:
+        atlas.alpha_composite(img, (px, py))
+        out[who][state][str(i)] = {"region": [px, py, img.width, img.height], "anchor": [round(ax, 1), round(ay, 1)], "scale": round(sc, 5)}
+    for who in out:
+        for state in out[who]:
+            out[who][state] = {k: v for k, v in out[who][state].items() if k.isdigit()}
+    atlas.save(OUT / "enemies" / "brothers.png", optimize=True)
+    return out
+
+
 def main(src: Path) -> None:
     if not (src / "project.godot").exists():
         sys.exit(f"{src} sieht nicht wie ein ShadepiRPG-Klon aus (project.godot fehlt)")
@@ -103,6 +225,9 @@ def main(src: Path) -> None:
     shutil.copy(src / "assets/memories/attack/bots.png", OUT / "enemies" / "bot.png")
     actors = json.loads((src / "assets/memories/attack/actors.json").read_text())
     manifest["bot"] = actors["bot"]
+
+    # --- Ordensbrüder (Dojo-Modus): Stand/Laufen/Kampffolge aus der Erinnerung „Angriff" ---
+    manifest["warriors"] = pack_brothers(src, actors)
 
     # --- Digitale Gegner: Einzelillustrationen verkleinern ------------------------
     fit(trim(Image.open(src / "assets/sprites/npcs/dive-virus.png").convert("RGBA")), 200).save(OUT / "enemies" / "virus.png", optimize=True)

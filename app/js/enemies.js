@@ -20,7 +20,7 @@ class Enemy extends Entity {
     this.life = 0;
   }
   get u() { return this.world.u; }
-  get S() { return this.world.settings.size; }
+  get S() { return this.world.scale; }
   talk(text, force) {
     if (!text || (!force && this.world.time - this.lastTalk < 4)) return;
     this.lastTalk = this.world.time;

@@ -32,6 +32,8 @@ class Input {
   }
 
   refreshHover(x, y) {
+    // Dojo: Overlay fängt die Maus komplett (Klicks = Angriffe)
+    if (this.world.duel) { this.setIgnore(false); document.body.style.cursor = this.world.duel.player && !this.world.duel.inMenu ? 'crosshair' : ''; return null; }
     const overUi = this.ui.isOver(x, y);
     const ent = overUi ? null : this.entityAt(x, y);
     const capture = !!(this.drag || this.pending || overUi || ent);
@@ -53,6 +55,7 @@ class Input {
 
   down(e) {
     const x = e.clientX, y = e.clientY;
+    if (this.world.duel) { if (!this.ui.isOver(x, y)) { e.preventDefault(); this.world.duel.mouse(e.button, true); } return; }
     if (this.ui.isOver(x, y)) return;
     const ent = this.entityAt(x, y);
     if (e.button === 2) {
@@ -93,6 +96,7 @@ class Input {
   }
 
   up(e) {
+    if (this.world.duel) { this.world.duel.mouse(e.button, false); return; }
     if (e.button !== 0) return;
     if (this.drag) { this.finishDrag(); return; }
     if (this.pending) {

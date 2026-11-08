@@ -23,9 +23,12 @@ class World {
     this.hidden = false; this.fade = 1;
     this.demoWindows = null;
     this.director = null;
+    this.duel = null;
   }
 
-  get u() { return this.settings.size / 0.72; }
+  // Figurengröße; im Dojo größer gezoomt, damit es sich wie ein Kampfspiel anfühlt
+  get scale() { return this.settings.size * (this.zoom || 1); }
+  get u() { return this.scale / 0.72; }
   get calmFactor() { return ({ ruhig: 1.8, normal: 1, chaos: 0.6 }[this.settings.activity] || 1) * (isNight() ? 1.6 : 1); }
   hasEnemies() { return this.enemies.some((e) => !e.dead && e.team === 'enemy'); }
   hero(name) { return this.heroes.find((h) => h.name === name); }
@@ -65,6 +68,7 @@ class World {
     // Flächen von Kisten, Automaten …
     this.terrain.dynamic = this.items.map((i) => i.surface()).filter(Boolean);
     for (const h of this.heroes) h.update(dt);
+    if (this.duel) this.duel.update(dt);
     for (const e of this.enemies) e.update(dt);
     for (const i of this.items) i.update(dt);
     for (const p of this.projectiles) p.update(dt);
@@ -84,21 +88,25 @@ class World {
     if (this.fade <= 0) return;
     ctx.globalAlpha = this.fade;
     if (this.demoWindows) this.demoWindows.draw(ctx, this);
+    if (this.duel) this.duel.drawBackdrop(ctx);
     ctx.save();
     ctx.translate(this.cinema.ox, this.cinema.oy);
     for (const s of this.screen) s.draw(ctx);
     if (this.settings.debug) this.drawDebug(ctx);
     for (const i of this.items) i.draw(ctx);
     const actors = [...this.enemies.filter((e) => !e.flying), ...this.heroes.filter((h) => !h.absent || h.alpha > 0)];
+    if (this.duel && this.duel.player) actors.push(this.duel.player);
     actors.sort((a, b) => (a.dragged ? 1 : 0) - (b.dragged ? 1 : 0) || a.y - b.y);
     for (const a of actors) a.draw(ctx);
     for (const e of this.enemies) if (e.flying) e.draw(ctx);
     for (const p of this.projectiles) p.draw(ctx);
+    if (this.duel) this.duel.drawWorld(ctx);
     this.fx.draw(ctx);
     this.bubbles.draw(ctx);
     this.fx.draw(ctx, 'top');
     ctx.restore();
     this.drawBossBar(ctx);
+    if (this.duel) this.duel.drawHud(ctx);
     this.cinema.drawOverlay(ctx, T.W, T.H);
     ctx.globalAlpha = 1;
   }

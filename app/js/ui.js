@@ -112,6 +112,7 @@ class UI {
       card('ICE-Wächter', 'Boss', this.icon('foe', 'ice'), () => D.startEvent('ice'), 'boss');
       card('Chrome Jackal', 'Boss', this.icon('foe', 'jackal'), () => D.startEvent('jackal'), 'boss');
     } else if (this.tab === 'scenes') {
+      card('Dojo', 'Kämpfe selbst gegen Shadepi · WASD, Maus, Controller', null, () => { this.close(); W.dojo && W.dojo.open(); }, 'text dojo');
       for (const id of ['drohnen', 'schwarm', 'viren', 'gang', 'bots', 'training', 'luke', 'system', 'besuch', 'sparring', 'plaudern', 'ball', 'blick', 'bluete', 'wechsel']) card(EVENT_LABELS[id], '', null, () => D.startEvent(id), 'text');
       card('Alles aufräumen', 'Gegner & Spielzeug weg', null, () => W.clearAll(), 'text warn');
     } else if (this.tab === 'cast') {

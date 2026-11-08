@@ -12,7 +12,7 @@ const IMAGE_FILES = {
   'shooter-visor': 'enemies/shooter-visor.png', 'shooter-violet': 'enemies/shooter-violet.png', jackal: 'enemies/jackal.png',
   bot: 'enemies/bot.png', virus: 'enemies/virus.png', ice: 'enemies/ice.png', drone: 'enemies/drone.png',
   bullet: 'fx/bullet.png', muzzle: 'fx/muzzle.png', lightning: 'fx/lightning.png', fire: 'fx/fire.png', smoke: 'fx/smoke.png', explosion: 'fx/explosion.png',
-  frame: 'ui/frame.png', header: 'ui/header.png', icon: 'ui/icon.png',
+  brothers: 'enemies/brothers.png', frame: 'ui/frame.png', header: 'ui/header.png', icon: 'ui/icon.png',
 };
 for (const n of ['crate', 'barrel', 'server', 'holocube', 'vending', 'fusebox']) {
   for (const s of ['intact', 'damaged', 'broken']) IMAGE_FILES[`${n}-${s}`] = `props/${n}-${s}.png`;

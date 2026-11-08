@@ -39,6 +39,7 @@ const DEFAULTS = {
   gameIgnore: [],
   sysReports: true,
   romance: true,
+  dojo: {},
 };
 
 let overlay = null;
@@ -168,6 +169,7 @@ function buildTray() {
     { label: 'Shadepi Deskpet', enabled: false },
     ...gameItems,
     { label: 'Menü öffnen  (Strg+Alt+P)', click: () => send('open-menu', cursorInOverlay()) },
+    { label: 'Dojo: Gegen Shadepi kämpfen  (Strg+Alt+D)', click: openDojo },
     { type: 'separator' },
     { label: 'Maskottchen', submenu: [radio('Shadepi', 'mode', 'shadepi'), radio('Raven', 'mode', 'raven'), radio('Beide', 'mode', 'beide'), radio('Abwechselnd (Besuche)', 'mode', 'wechselnd')] },
     { label: 'Ereignis starten', submenu: EVENTS.map(([id, label]) => ({ label, click: () => send('event', id) })) },
@@ -195,6 +197,12 @@ function buildTray() {
 const exePath = () => process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
 function autostartEnabled() { try { return app.getLoginItemSettings({ path: exePath() }).openAtLogin; } catch (_) { return false; } }
 function setAutostart(on) { try { app.setLoginItemSettings({ openAtLogin: !!on, path: exePath() }); } catch (_) {} buildTray(); }
+
+function openDojo() {
+  if (!overlay) return;
+  if (!overlay.isVisible()) { userHidden = false; if (gaming.active) gameOverride = true; overlay.showInactive(); buildTray(); }
+  send('dojo');
+}
 
 function toggleVisible() {
   if (!overlay) return;
@@ -252,6 +260,7 @@ if (!app.requestSingleInstanceLock()) {
 
     globalShortcut.register('CommandOrControl+Alt+P', () => send('open-menu', cursorInOverlay()));
     globalShortcut.register('CommandOrControl+Alt+H', toggleVisible);
+    globalShortcut.register('CommandOrControl+Alt+D', openDojo);
 
     try { gameDetect = require('./games').createGameDetector(); } catch (e) { if (process.platform === 'win32') log('Spielerkennung nicht verfügbar: ' + e.message); }
     if (gameDetect) { setInterval(checkGames, 2500); setTimeout(checkGames, 1500); }

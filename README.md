@@ -46,6 +46,32 @@ Ab und zu (und über Menü → Szenen → „Systembericht“) projiziert Raven 
 
 Erscheint Shadepi, schaut Raven ihn oft an und es steigen kleine Herzen auf („Da ist er ja…“). Shadepi zeigt es auf seine Art: Mit einem Klingenhieb erschafft er eine **Kirschblüte aus Licht**, schenkt sie ihr, und Blütenblätter rieseln – danach dreht er sich verlegen weg. Abschaltbar unter System → „Romantische Momente“.
 
+## Dojo: Kämpf selbst gegen Shadepi
+
+Menü → Szenen → **Dojo**, im Tray **„Dojo: Gegen Shadepi kämpfen“** oder **Strg+Alt+D**. Du wählst einen seiner vier **Ordensbrüder** – mit ihren echten Figuren aus ShadepiRPG (Stand, Laufen und die ganze Kampffolge) – und eine Schwierigkeit. Gekämpft wird auf dem Bildschirmboden, zwei Gewinnrunden, 75 Sekunden pro Runde.
+
+| Ordensbruder | Waffe | Stärke | Spezialtechnik |
+| --- | --- | --- | --- |
+| **Oni** | Katana | ausgewogen, schnelle Kombos | **Oni-Wirbel** – drei Wirbelhiebe nach vorn und hinten |
+| **Roboterkopf** | Kampfstab | größte Reichweite, zäh | **Stabsturm** – Sprung mit Bodenschlag-Schockwelle |
+| **Ly** | weiße Lichtklinge | am schnellsten, wenig Leben | **Weißer Schatten** – Teleport hinter Shadepi, nicht blockbar |
+| **MG-Krieger** | schweres MG | Fernkampf, Panzerung, Schulterstoß | **Sperrfeuer** – 14 Schuss am Stück |
+
+| Tastatur & Maus | Controller | |
+| --- | --- | --- |
+| A / D | Stick / Steuerkreuz | laufen |
+| W / Leertaste | A | springen |
+| Linksklick / J | X | Angriff |
+| Rechtsklick / K | Y | schwerer Angriff |
+| S halten | RB / RT | blocken – kurz vor dem Treffer: **Perfekte Parade** |
+| Shift / L | B | ausweichen (kurz unverwundbar) |
+| E | LB / LT | Spezialtechnik (bei voller Energie) |
+| Esc | Start | Pause, Krieger wechseln, Dojo verlassen |
+
+Shadepi nimmt es als **Training**: Er pariert, kontert mit Kombos, Tritt, aufgeladenem Hieb, Wurfsternen, Sprungschlag und auf „Schwer“ auch mit dem Schattenschritt; MG-Kugeln schlägt er gern zurück. Dabei kommentiert er – meist spöttisch („Du triffst die Luft. Sie hat Angst.“, „Du bist kein Frosch.“), manchmal mit Lob („Saubere Parade!“, „Der Orden wäre stolz.“). Auf „Leicht“ gibt er Tipps. Raven schaut zu und feuert an. Am Ende gibt es eine Wertung (S bis D) mit Treffern, bester Kombo und Paraden; Siege und Niederlagen werden gespeichert.
+
+Während des Kampfes gehören Maus und Tastatur dem Dojo (der Desktop wird leicht abgedunkelt); danach geht alles wieder durch das Overlay hindurch. Startet ein Spiel, endet das Dojo automatisch. Fällige Wecker werden kurz eingeblendet und nach dem Kampf richtig gemeldet.
+
 ## Spielmodus
 
 Startest du ein Spiel, legt sich das Maskottchen komplett schlafen: Das Overlay verschwindet, nichts wird mehr gezeichnet, kein Ton, keine Ereignisse. Erst wenn das Spiel beendet ist, kommen die beiden zurück und fragen, wie es lief.
@@ -73,6 +99,7 @@ Neue Versionen entstehen automatisch: Wird `version` in `package.json` erhöht u
 | Spielzeug anklicken | wird weggekickt; Power-ups lässt du von der nächsten Figur einsammeln. |
 | **Rechtsklick auf eine Figur**, Klick auf das **Tray-Symbol**, die **Seitenleiste** rechts oder **Strg+Alt+P** | Menü öffnen. |
 | **Strg+Alt+H** | Alles aus-/einblenden. |
+| **Strg+Alt+D** | Dojo öffnen (Kampf gegen Shadepi). |
 
 Überall sonst gehen Klicks einfach durch das Overlay hindurch – du kannst normal weiterarbeiten.
 
@@ -81,7 +108,7 @@ Neue Versionen entstehen automatisch: Wird `version` in `package.json` erhöht u
 - **Spielzeug:** Kiste, explosives Fass, Holowürfel, Neon-Ball, Snackautomat, Server, Sicherungskasten (Grafiken aus dem Spiel). Die Figuren spielen damit: kicken, zerlegen Kisten, Raven hackt Automaten und schießt Fässer an.
 - **Ausrüstung:** Heiligtums-Kern (Aura, doppelter Schaden), Drachenklinge (Schwertwellen), Wurfsterne, Overclock-Chip (Schnellfeuer), EMP-Granate, Nanitenpaket.
 - **Gegner:** einzelne Drohnen, Viren, Cyberpunks, Schützen, Kampfbots sowie beide Bosse.
-- **Szenen:** jedes automatische Ereignis lässt sich auch direkt starten.
+- **Szenen:** das **Dojo** und jedes automatische Ereignis lassen sich direkt starten.
 - **Figuren:** Modus wählen, Partner rufen, Schichtwechsel.
 - **System:** Größe, Lautstärke, Aktivität (Ruhig/Normal/Chaos), Kino-Effekte, Bildschirmschäden, Fensterklettern, Sprechblasen, Kampfmusik, bei Vollbild ausblenden, Ruhemodus, Beenden.
 
@@ -108,11 +135,11 @@ Nützliche Vorschau-Parameter: `?mode=beide&event=training`, `event=luke`, `even
 
 - **Electron**-Overlay: randlos, transparent, immer im Vordergrund, über den ganzen Bildschirm. Klick-Durchlass per `setIgnoreMouseEvents(…, { forward: true })`; nur über Figuren, Gegenständen und dem Menü fängt das Overlay die Maus ab.
 - **Fenstererkennung** (`main/winscan.ps1`): ein kleiner PowerShell-/C#-Helfer liest per `EnumWindows` + DWM-Rahmen alle sichtbaren Fenster in Z-Reihenfolge (DPI-bewusst) und meldet Änderungen als JSON. Daraus berechnet `app/js/terrain.js` begehbare Oberkanten und kletterbare Seiten. Unter macOS/Linux laufen die Figuren nur auf dem Bildschirmboden.
-- **Spiel-Engine** in reinem Canvas-JavaScript (`app/js/`): Helden-KI mit Generator-Abläufen (`hero.js`), Gegner (`enemies.js`), Spielzeug/Power-ups (`items.js`), Effekte und Bildschirmschäden (`fx.js`, `screen.js`), Kino-Regie (`cinema.js`) und die automatische Regie (`director.js`).
+- **Spiel-Engine** in reinem Canvas-JavaScript (`app/js/`): Helden-KI mit Generator-Abläufen (`hero.js`), Gegner (`enemies.js`), Spielzeug/Power-ups (`items.js`), Effekte und Bildschirmschäden (`fx.js`, `screen.js`), Kino-Regie (`cinema.js`), die automatische Regie (`director.js`) und der Dojo-Kampfmodus mit Controller-Unterstützung über die Gamepad-API (`duel.js`).
 
 ## Grafiken, Klänge und Schriften
 
-Alles unter `app/assets/` stammt aus **ShadepiRPG** und wird dort nicht verändert: Helden-Atlanten, Kampfposen, Ravens Handzauber, Straßenkämpfer, Schützen, Chrome Jackal, Kampfbot, Drohne (Fahrzeugatlas), Datenvirus, ICE-Wächter, Requisiten, Feuer/Rauch/Explosion, Pixel-UI (Raven-Thema), Soundeffekte, Kampf-/Bossmusik und die Schriften *Shadepi Pixel* (Jersey 10, OFL) und *Silkscreen* (OFL). Neu übernehmen bzw. aktualisieren:
+Alles unter `app/assets/` stammt aus **ShadepiRPG** und wird dort nicht verändert: Helden-Atlanten, Kampfposen, Ravens Handzauber, Straßenkämpfer, Schützen, Chrome Jackal, Kampfbot, Drohne (Fahrzeugatlas), die vier Ordensbrüder Oni, Roboterkopf, Ly und MG-Krieger (Dojo), Datenvirus, ICE-Wächter, Requisiten, Feuer/Rauch/Explosion, Pixel-UI (Raven-Thema), Soundeffekte, Kampf-/Bossmusik und die Schriften *Shadepi Pixel* (Jersey 10, OFL) und *Silkscreen* (OFL). Neu übernehmen bzw. aktualisieren:
 
 ```bash
 python tools/build_assets.py ../ShadepiRPG

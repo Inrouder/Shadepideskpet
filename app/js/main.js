@@ -6,6 +6,7 @@ const DEFAULT_SETTINGS = {
   mode: 'wechselnd', size: 0.72, volume: 0.55, activity: 'normal', cinematic: true, screenDamage: true, music: false,
   bubbles: true, hideFullscreen: true, climbWindows: true, display: 0, dock: true, paused: false, debug: false,
   reminders: [], chime: false, breakEvery: 0, drinkEvery: 0, gamePause: true, gameOwn: [], gameIgnore: [], sysReports: true, romance: true,
+  dojo: {},
 };
 
 // ---------------------------------------------------------------- Browser-Vorschau
@@ -71,7 +72,7 @@ class DemoWindows {
   if (!bridge) { try { stored = JSON.parse(localStorage.getItem('deskpet-settings') || '{}'); } catch (_) {} }
   const settings = { ...DEFAULT_SETTINGS, ...stored };
   for (const [k, v] of params) {
-    if (k in DEFAULT_SETTINGS && !Array.isArray(DEFAULT_SETTINGS[k])) settings[k] = typeof DEFAULT_SETTINGS[k] === 'number' ? +v : typeof DEFAULT_SETTINGS[k] === 'boolean' ? v !== '0' && v !== 'false' : v;
+    if (k in DEFAULT_SETTINGS && typeof DEFAULT_SETTINGS[k] !== 'object') settings[k] = typeof DEFAULT_SETTINGS[k] === 'number' ? +v : typeof DEFAULT_SETTINGS[k] === 'boolean' ? v !== '0' && v !== 'false' : v;
   }
   if (params.has('seed')) setSeed(+params.get('seed'));
 
@@ -94,6 +95,7 @@ class DemoWindows {
 
   const director = new Director(world);
   world.director = director;
+  world.api = api;
   let lastMode = settings.mode;
   function applySettings() {
     Sound.volume = settings.volume;
@@ -124,6 +126,7 @@ class DemoWindows {
     bridge.on('windows', (d) => { world.terrain.setWindows(d.windows); world.hidden = settings.hideFullscreen && d.fullscreen; });
     bridge.on('open-menu', (p) => ui.open(p.x, p.y));
     bridge.on('event', (id) => director.startEvent(id));
+    bridge.on('dojo', () => world.dojo && (world.dojo.active ? world.dojo.togglePause() : world.dojo.open()));
     bridge.on('scanner', (s) => { world.scanner = s; if (ui && ui.isOpen) ui.updateStatus(); });
     window.addEventListener('error', (e) => bridge.log && bridge.log(`${e.message} @ ${e.filename}:${e.lineno}`));
     const origError = console.error;
@@ -156,9 +159,17 @@ class DemoWindows {
   // Erinnerungen laufen auch weiter, wenn das Overlay im Spielmodus unsichtbar ist
   setInterval(() => { if (world.gaming) reminders.update(1.01); }, 1000);
   const input = new Input(world, ui, bridge);
+  const dojo = new Dojo(world, bridge, input);
+  world.dojo = dojo; world.ui = ui;
   director.setup();
   applySettings();
-  Object.assign(window.PET, { director, ui, input, api, reminders, updates, sys });
+  Object.assign(window.PET, { director, ui, input, api, reminders, updates, sys, dojo });
+  // Dojo direkt öffnen (Vorschau/Tests): ?dojo=1 bzw. ?duel=oni&level=schwer
+  if (params.has('dojo') || params.has('duel')) setTimeout(() => {
+    dojo.open();
+    const who = params.get('duel');
+    if (who && BROTHERS[who]) { dojo.sel = DOJO_ORDER.indexOf(who); dojo.lvl = Math.max(0, DOJO_LEVELS.indexOf(params.get('level') || 'mittel')); dojo.start(); }
+  }, +(params.get('delay') || 1500));
 
   if (params.get('event')) setTimeout(() => director.startEvent(params.get('event')), +(params.get('delay') || 1500));
   if (params.has('menu')) setTimeout(() => ui.open(innerWidth * 0.55, innerHeight * 0.35), 400);
@@ -168,7 +179,7 @@ class DemoWindows {
   function frame(now) {
     const dt = ((now - last) / 1000) * speed;
     last = now;
-    if (world.gaming) { frame.prev = now; requestAnimationFrame(frame); return; }
+    if (world.gaming) { if (dojo.active) dojo.close(); frame.prev = now; requestAnimationFrame(frame); return; }
     if (world.demoWindows) world.demoWindows.update(dt);
     input.update(Math.min(dt, 0.05));
     reminders.update((now - (frame.prev || now)) / 1000);

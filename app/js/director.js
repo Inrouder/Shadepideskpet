@@ -6,7 +6,7 @@ const EVENT_LABELS = {
   drohnen: 'Drohnenpatrouille', schwarm: 'Drohnenschwarm', viren: 'Virusausbruch', gang: 'Cyberpunk-Gang', bots: 'Kampfbots',
   ice: 'Boss: ICE-Wächter', jackal: 'Boss: Chrome Jackal', training: 'Shadepi trainiert', luke: 'Raven repariert Kabel',
   besuch: 'Partner kommt vorbei', sparring: 'Sparring', plaudern: 'Plaudern', ball: 'Ballspiel', wechsel: 'Schichtwechsel',
-  system: 'Systembericht', blick: 'Verliebter Blick', bluete: 'Shadepis Lichtblüte',
+  system: 'Systembericht', blick: 'Verliebter Blick', bluete: 'Shadepis Lichtblüte', dojo: 'Dojo: Kampf gegen Shadepi',
 };
 
 function timeGreeting() {
@@ -146,6 +146,8 @@ class Director {
 
   startEvent(id) {
     const W = this.world, T = W.terrain;
+    if (id === 'dojo') { if (W.dojo) W.dojo.open(); return; }
+    if (W.duel) return;
     this.lastEvent = id;
     const present = W.presentHeroes();
     const sh = W.hero('shadepi'), ra = W.hero('raven');
@@ -464,7 +466,7 @@ class Director {
     const W = this.world;
     // Skripte
     this.scripts = this.scripts.filter((g) => { try { return !g.next().done; } catch (e) { console.error(e); return false; } });
-    if (W.hidden) return;
+    if (W.hidden || W.duel) return;
     const fighting = W.hasEnemies();
     if (this.queued && !fighting) { const q = this.queued; this.queued = null; this.queueTries = (this.queueTries || 0) + 1; if (this.queueTries < 40) setTimeout(() => this.startEvent(q), 250); else this.queueTries = 0; }
     else if (!this.queued) this.queueTries = 0;

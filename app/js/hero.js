@@ -36,7 +36,7 @@ class Hero extends Entity {
   }
 
   get u() { return this.world.u; }
-  get S() { return this.world.settings.size; }
+  get S() { return this.world.scale; }
   get partner() { return this.world.heroes.find((h) => h !== this && !h.absent); }
   get dmgMult() { return this.buffs.core > 0 ? 2 : 1; }
   get jumpMax() { return this.def.jump * this.u; }
@@ -1268,6 +1268,7 @@ class Hero extends Entity {
   // ======================================================== Update
   update(dt) {
     const W = this.world;
+    if (W.duel && W.duel.owns(this)) return;
     this.tickTimers(dt);
     if (this.absent) { if (this.task) this.runTask(); return; }
     for (const k in this.buffs) this.buffs[k] = Math.max(0, this.buffs[k] - dt);
@@ -1386,6 +1387,7 @@ class Hero extends Entity {
         drawAtlas(ctx, img, GROUP.hit, fd ?? side, 0, x, y, S, opts);
         break;
       case 'ko':
+        if (this.world.duel && this.name === 'shadepi') { drawPose(ctx, 1, side, x, y, S, opts); break; }
         drawAtlas(ctx, img, GROUP.hit, DIR.down, 0, x, y + 6 * u, S, { ...opts, sy: 0.9 });
         break;
       case 'tumble':

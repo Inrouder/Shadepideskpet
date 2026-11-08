@@ -98,6 +98,13 @@ class Reminders {
         const q = { ...r };
         // Während eines Spiels: nur eine stille Windows-Benachrichtigung, Auftritt danach
         if (this.world.gaming && this.bridge && this.bridge.notify) { this.bridge.notify(r.kind === 'alarm' ? 'Wecker' : 'Timer', r.text || 'Zeit ist um.'); q.notified = true; }
+        // Im Dojo: Hinweis einblenden, Auftritt nach dem Kampf
+        else if (this.world.duel) {
+          const W = this.world, sh = W.hero('shadepi');
+          W.cinema.card(r.kind === 'alarm' ? 'WECKER' : r.kind === 'timer' ? 'TIMER' : 'ERINNERUNG', (r.text || 'Zeit ist um.').toUpperCase(), COLORS.amber, 2.6, { always: true, small: true, y: W.terrain.H * 0.5 });
+          Sound.play('calib_alarm', 0.6);
+          if (sh) sh.talk(r.kind === 'alarm' || r.kind === 'timer' ? 'Dein Wecker, Bruder. Ich sag es dir nach dem Kampf noch mal.' : 'Erinnerung wartet. Erst die Runde.', true);
+        }
         this.queue.push(q);
         if (r.kind === 'alarm' && r.repeat && r.repeat !== 'einmalig') keep.push({ ...r, at: nextAt(r.hh, r.mm, r.repeat, new Date(now + 1000)) });
       }
@@ -113,7 +120,7 @@ class Reminders {
       const h = this.speaker();
       if (h) { h.talk(remLine(h.name, 'chime', d.getHours()), true); Sound.play('calib_accept', 0.4, 0.9); this.world.fx.label(h.x, h.y - 130 * this.world.u, fmtClock(d), COLORS.cyan, 22, 2.2); }
     }
-    if (!this.active && this.queue.length && !this.world.gaming && now > (this.holdUntil || 0)) this.deliver(this.queue.shift());
+    if (!this.active && this.queue.length && !this.world.gaming && !this.world.duel && now > (this.holdUntil || 0)) this.deliver(this.queue.shift());
   }
 
   // ---------------------------------------------------------- Überbringen
