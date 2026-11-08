@@ -147,7 +147,7 @@ function buildTray() {
     ] },
     { type: 'separator' },
     check('Ruhemodus', 'paused'),
-    { label: 'Mit Windows starten', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin, click: (i) => { app.setLoginItemSettings({ openAtLogin: i.checked }); buildTray(); } },
+    { label: 'Mit Windows starten', type: 'checkbox', checked: autostartEnabled(), click: (i) => setAutostart(i.checked) },
     { label: 'Ausblenden / Einblenden  (Strg+Alt+H)', click: toggleVisible },
     { label: 'Projektseite', click: () => shell.openExternal('https://github.com/Inrouder/Shadepideskpet') },
     { type: 'separator' },
@@ -155,6 +155,11 @@ function buildTray() {
   ]);
   tray.setContextMenu(menu);
 }
+
+// Bei der portablen EXE zeigt execPath in einen Temp-Ordner – dann die echte Datei verwenden.
+const exePath = () => process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+function autostartEnabled() { try { return app.getLoginItemSettings({ path: exePath() }).openAtLogin; } catch (_) { return false; } }
+function setAutostart(on) { try { app.setLoginItemSettings({ openAtLogin: !!on, path: exePath() }); } catch (_) {} buildTray(); }
 
 function toggleVisible() {
   if (!overlay) return;
@@ -195,7 +200,7 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('get-cursor', (e) => { e.returnValue = cursorInOverlay(); });
   ipcMain.on('quit', () => app.quit());
   ipcMain.on('hide', () => toggleVisible());
-  ipcMain.on('autostart', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on }); buildTray(); });
+  ipcMain.on('autostart', (_e, on) => setAutostart(on));
 
   app.on('will-quit', () => { globalShortcut.unregisterAll(); if (scanner) scanner.stop(); });
   app.on('window-all-closed', () => app.quit());
