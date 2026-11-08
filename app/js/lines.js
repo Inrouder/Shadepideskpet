@@ -1,0 +1,93 @@
+// Sprüche. Shadepi: ruhig, wortkarg, trocken. Raven: schlagfertige Netrunnerin.
+'use strict';
+
+const LINES = {
+  shadepi: {
+    drag: ['Lass mich runter.', 'Ich warne dich nur einmal.', 'Das ist unter meiner Würde.', 'Der Orden hat mich nicht dafür ausgebildet.', 'Pass auf meinen Hut auf!', 'Ich spüre deine Absicht. Sie ist… albern.', 'Hand weg vom Mantel.', 'Noch ein Schwung und ich ziehe die Klinge.', 'Das Heiligtum ist nicht amüsiert.', 'Ich bin kein Spielzeug.', 'Respekt. Schon mal gehört?'],
+    shake: ['Hör… auf… zu… schütteln.', 'Mein Gleichgewicht! Lass das!', 'Genug!'],
+    thrown: ['…Sauber gelandet. Trotzdem nicht nett.', 'Das merke ich mir.', 'Hmpf.', 'Ein Krieger fällt nicht. Er landet.', 'Nächstes Mal weiche ich aus.'],
+    dizzy: ['Die Welt dreht sich…', 'Drei Mauszeiger. Welcher ist echt?'],
+    poke: ['Hm?', 'Ich bin wachsam.', 'Brauchst du etwas?', 'Ruhe ist auch eine Waffe.', '…', 'Ich sehe dich.', 'Nicht stupsen.'],
+    idle: ['Night City schläft nie.', 'Das Heiligtum ist ruhig. Gut.', 'Stille vor dem Sturm.', 'Ein guter Aussichtspunkt.', 'Zu viele offene Fenster. Zu viele Schwachstellen.', 'Ich halte Wache.'],
+    climb: ['Hoch hinaus.', 'Von oben sieht man mehr.', 'Gleich oben.'],
+    windowTop: (t) => [`„${t}“. Seltsamer Ort.`, `Ich bewache „${t}“.`],
+    fightStart: ['Kehrt um, solange ihr noch könnt.', 'Für den Orden.', 'Ihr habt den falschen Bildschirm gewählt.', 'Bleibt hinter mir.'],
+    drones: ['Sie kommen von oben.', 'Drohnen. Laut und dumm.'],
+    viruses: ['Digitaler Abschaum.', 'Etwas Fremdes im System.'],
+    gang: ['Kehrt um. Solange ihr noch könnt.', 'Ich zähle drei. Nein, vier.'],
+    bots: ['Kampfbots… wie damals im Kloster.', 'Diesmal bin ich vorbereitet.'],
+    boss: ['Endlich ein würdiger Gegner.', 'Konzentration.'],
+    victory: ['Es ist vorbei.', 'Ruhe kehrt ein.', 'Der Bildschirm ist sicher.', 'Gut gekämpft.'],
+    hurt: ['Ngh.', 'Nicht schlecht.', 'Das hat gesessen.'],
+    ko: ['Heiligtum… hilf mir.', 'Noch… nicht…'],
+    revive: ['Das Heiligtum trägt mich.', 'Weiter.'],
+    join: ['Ich bin hier.', 'Du hast gerufen?', 'Brauchst du eine Klinge?'],
+    arrive: ['Ich übernehme die Wache.', 'Alles ruhig hier?'],
+    hello: ['Ich bin da.', 'Ich halte Wache.', '…Hallo.'],
+    leave: ['Ich verschwinde in den Schatten.', 'Bis später.'],
+    training: ['Eins. Zwei. Drei.', 'Form des fallenden Blatts.', 'Atmen. Schneiden.', 'Noch einmal.', 'Schneller.'],
+    oops: ['…', 'Das war nicht geplant.', 'Niemand hat das gesehen.', 'Hm. Das Glas war im Weg.'],
+    tape: ['Klebeband. Die wahre Waffe des Ordens.', 'Wie neu.', 'Hält. Vermutlich.'],
+    pickup: { shuriken: 'Gute Balance.', core: 'Ich spüre es… das Heiligtum.', medkit: 'Danke.', emp: 'Ein Geschenk für Drohnen.', blade: 'Die Drachenklinge…', overclock: 'Das ist Ravens Spielzeug.' },
+    toy: { crate: 'Eine Kiste. Perfekt zum Üben.', barrel: 'Das riecht nach Ärger.', cube: 'Ein Holowürfel. Hm.', ball: 'Ein Ball?', vending: 'Hat er Tee?', server: 'Das ist eher Ravens Revier.', fusebox: 'Hochspannung. Ich fasse das nicht an.' },
+    sleepy: ['Ich meditiere nur.', 'Zzz…'],
+  },
+  raven: {
+    drag: ['Hey! Finger weg!', 'Ich bin doch kein Mausspielzeug!', 'Lass los, oder ich formatier dich!', 'Ich hack deine Maus. Ernsthaft.', 'Meine Haare! Weißt du, wie lange die dauern?', 'Schon mal was von Privatsphäre gehört?', 'Ich zähl bis drei… dann gibt’s Kurzschluss.', 'Wenn Shadepi das sieht, bist du Geschichte.', 'Runter! Sofort!', 'Ich hab dich in meiner Logdatei. Nur so.'],
+    shake: ['Mir wird schlecht! STOPP!', 'Mein Implantat klappert!', 'Hör auf zu wackeln!'],
+    thrown: ['Autsch! Das gibt Rache.', 'Zehn Punkte für die Landung. Null für dich.', 'Super. Jetzt hab ich Staub im Interface.', 'Hast du das gerade WIRKLICH gemacht?'],
+    dizzy: ['Alles dreht sich… ist das ein Bug?', 'Systemfehler… im Kopf.'],
+    poke: ['Was ist? Ich arbeite.', 'Klick mich noch einmal und ich klick zurück.', 'Ja, ich seh dich.', 'Brauchst du ’nen Hack?', 'Doppelklick kostet extra.', 'Na?'],
+    idle: ['Langweilig hier. Soll ich deine Tabs aufräumen?', 'Wer hat denn so viele Fenster offen?', 'Ich riech Malware. Nur so ein Gefühl.', 'Dein Desktop braucht mehr Neon.', 'Ping… 12 ms. Geht so.', 'Wo ist eigentlich mein Hutmann?'],
+    climb: ['Hoch mit dir, Raven.', 'Fensterklettern. Mein Cardio.', 'Bessere Aussicht da oben.'],
+    windowTop: (t) => [`„${t}“? Interessant…`, `Ich sitz auf „${t}“. Bequem.`, `„${t}“ – soll ich da mal reinschauen?`],
+    fightStart: ['Na endlich, Action!', 'Ich zieh die Firewall hoch.', 'Okay, zeigt mal, was ihr könnt.'],
+    drones: ['Drohnen! Kennung verwischt – Militech-Schrott.', 'Ich übernehm eine. Die anderen gehen hoch.'],
+    viruses: ['Ein Virus! Nicht auf MEINEM Bildschirm!', 'Datenmüll mit Zähnen. Ekelhaft.'],
+    gang: ['Echt jetzt? Nur so wenige?', 'Ihr wollt den Chip? Holt ihn euch.'],
+    bots: ['Kampfbots. Ich stör ihre Zielerfassung.', 'Blech. Viel Blech.'],
+    boss: ['Okay. Jetzt wird’s ernst.', 'Den knacken wir zusammen.'],
+    victory: ['Sauber. Bildschirm wieder virenfrei.', 'War das alles?', 'Gern geschehen.', 'Und raus.'],
+    hurt: ['Au!', 'Hey!', 'Das gibt Rache!'],
+    ko: ['System… Neustart…', 'Kurz… offline…'],
+    revive: ['Wieder online!', 'Reboot abgeschlossen.'],
+    join: ['Brauchst du Hilfe, Hutmann?', 'Ohne mich geht’s ja doch nicht.', 'Ich hab dir den Rücken frei gehalten. Wie immer.'],
+    arrive: ['Hi! Hab ich was verpasst?', 'Schichtwechsel. Ich übernehme.'],
+    hello: ['Hi! Na, was machen wir heute?', 'Raven online.', 'Hallo du. Schöner Desktop.'],
+    leave: ['Ich bin dann mal im Netz.', 'Bis später. Mach keinen Unsinn.'],
+    hatchStart: ['Moment. Da stimmt was mit den Leitungen nicht.', 'Signal schwankt. Ich schau mal rein.'],
+    hatchWork: ['Wer hat das denn verkabelt? Ein Toaster?', 'Rot auf Cyan… nein. So.', 'Vorsicht, heiß.', 'Und… da.'],
+    hatchDone: ['Gern geschehen, Bildschirm.', 'Läuft wieder. Wie immer.', 'Fertig. Du schuldest mir einen Kaffee.'],
+    pickup: { overclock: 'Overclock! Jetzt wird’s schnell.', emp: 'Oh, ein Geschenk!', medkit: 'Danke, das tat gut.', core: 'Das gehört eigentlich Shadepi…', shuriken: 'Wurfsterne? Na gut.', blade: 'Zu schwer für mich. Behalten wir trotzdem.' },
+    toy: { crate: 'Eine Kiste. Was da wohl drin ist?', barrel: 'Explosiv. Ich mag’s.', cube: 'Ein Holowürfel! Hübsch.', ball: 'Fang!', vending: 'Ein Snackautomat! Endlich.', server: 'Ein Server. Darf ich? Ich darf.', fusebox: 'Ein Sicherungskasten. Lass mich mal.' },
+    sleepy: ['Nur fünf Minuten…', 'Zzz…'],
+    holeReact: ['Shadepi! Schon wieder der Bildschirm?!', 'Ernsthaft? Das ist das dritte Loch diese Woche.'],
+  },
+  artos: {
+    hatch: ['Wartungsklappe entriegelt.', 'Leitung stabil. Signal 100 Prozent.'],
+    alarm: ['Warnung: unbekannte Signaturen.', 'Feindkontakt.'],
+  },
+  enemy: {
+    punk: ['Da ist der Hutträger!', 'Kopfgeld, Leute! Holt sie euch!', 'Hey Netrunnerin, gib uns den Chip!', 'Das ist jetzt unser Bildschirm!', 'Neue Klamotten, alte Schulden!'],
+    punkHurt: ['Argh!', 'Hey!', 'Das tat weh!'],
+    jackal: ['Ihr schon wieder!', 'Meine Implantate sind neu. Zeit für einen Test.', 'Chrome Jackal vergisst nichts!'],
+  },
+  duo: [
+    [['raven', 'Du hast da was am Hut.'], ['shadepi', 'Das ist Absicht.']],
+    [['raven', 'Kaffee?'], ['shadepi', 'Tee.'], ['raven', 'Langweiler.']],
+    [['shadepi', 'Du hackst schon wieder fremde Fenster.'], ['raven', 'Ich „prüfe die Sicherheit“.']],
+    [['raven', 'Wie viele Fenster hat dieser Mensch offen?!'], ['shadepi', 'Mehr, als gut ist.']],
+    [['raven', 'Wir sind ein gutes Team, oder?'], ['shadepi', '…Ja.'], ['raven', 'Das war fast romantisch.']],
+    [['shadepi', 'Bleib in meiner Nähe.'], ['raven', 'Immer doch, Hutmann.']],
+    [['raven', 'Wetten, ich bin zuerst oben?'], ['shadepi', 'Die Wette gilt.']],
+  ],
+};
+
+function line(who, key, arg) {
+  const set = LINES[who] && LINES[who][key];
+  if (!set) return '';
+  if (typeof set === 'function') return pick(set(arg));
+  if (Array.isArray(set)) return pick(set);
+  if (typeof set === 'object') return set[arg] || '';
+  return set;
+}

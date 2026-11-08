@@ -1,0 +1,51 @@
+{
+  "name": "shadepi-deskpet",
+  "productName": "Shadepi Deskpet",
+  "version": "1.0.0",
+  "description": "Desktop-Maskottchen im Stil von ShadepiRPG: Shadepi und Raven laufen über den Bildschirm, klettern Fenster hoch und kämpfen gegen Drohnen, Viren und Cyberpunks.",
+  "main": "main/main.js",
+  "author": "Inrouder",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "demo": "node tools/serve.js",
+    "assets": "python tools/build_assets.py ../ShadepiRPG",
+    "check": "node tools/check.js",
+    "dist": "electron-builder --win portable nsis --x64",
+    "dist:dir": "electron-builder --win dir --x64"
+  },
+  "devDependencies": {
+    "electron": "^45.2.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "de.inrouder.shadepideskpet",
+    "productName": "Shadepi Deskpet",
+    "artifactName": "Shadepi-Deskpet-${version}-${arch}-${target}.${ext}",
+    "files": [
+      "main/**",
+      "app/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Shadepi Deskpet"
+    },
+    "portable": {
+      "artifactName": "Shadepi-Deskpet-${version}-portable.exe"
+    }
+  }
+}

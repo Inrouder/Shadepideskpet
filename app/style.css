@@ -1,0 +1,87 @@
+@font-face { font-family: 'ShadepiPixel'; src: url('assets/fonts/ShadepiPixel.ttf') format('truetype'); }
+@font-face { font-family: 'Silkscreen'; src: url('assets/fonts/Silkscreen-Regular.ttf') format('truetype'); }
+
+:root {
+  --cyan: #62e3ee; --magenta: #ff7fc0; --deep: #070a12; --text: #d9f3f7; --muted: #7f9fb0; --warn: #ff697c; --red: #ff3150; --amber: #ffb43a;
+}
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; user-select: none; -webkit-user-select: none; }
+body { font-family: 'ShadepiPixel', monospace; color: var(--text); }
+#stage { position: fixed; inset: 0; display: block; }
+#ui { position: fixed; inset: 0; pointer-events: none; }
+#ui .interactive { pointer-events: auto; }
+
+/* Seitenleiste */
+#dock {
+  position: fixed; right: -58px; top: 46%; width: 92px; height: 40px;
+  display: flex; align-items: center; gap: 6px; padding: 0 8px; box-sizing: border-box;
+  background: rgba(7,10,18,0.9); border: 2px solid #2a3342; border-right: none; border-left: 3px solid var(--cyan);
+  cursor: pointer; transition: right 0.18s ease-out; image-rendering: pixelated;
+}
+#dock img { width: 28px; height: 28px; image-rendering: pixelated; }
+#dock span { font-family: Silkscreen, monospace; font-size: 10px; color: var(--cyan); letter-spacing: 1px; }
+#dock:hover { right: 0; }
+
+/* Menü-Panel im Pixel-Rahmen */
+.panel {
+  position: fixed; width: 540px; max-height: 80vh; display: flex; flex-direction: column;
+  border-style: solid; border-width: 22px; border-image: url('assets/ui/frame.png') 22 fill / 22px stretch;
+  image-rendering: pixelated; box-sizing: border-box; padding: 0 2px;
+  filter: drop-shadow(0 10px 24px rgba(0,0,0,0.55));
+  animation: pop 0.16s ease-out;
+}
+.panel.hidden { display: none; }
+@keyframes pop { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.menu-head { display: flex; justify-content: space-between; align-items: flex-start; margin: -10px 0 6px; }
+.menu-head .title { font-size: 26px; color: #f4f0e4; text-shadow: 2px 0 0 rgba(255,49,80,0.6), -2px 0 0 rgba(98,227,238,0.6); letter-spacing: 1px; }
+.menu-head .sys { font-family: Silkscreen, monospace; font-size: 8px; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
+.close { background: none; border: 1px solid #3d4a5c; color: var(--warn); font-size: 14px; width: 26px; height: 24px; cursor: pointer; font-family: monospace; }
+.close:hover { background: rgba(255,105,124,0.15); }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 8px; }
+.tab {
+  font-family: Silkscreen, monospace; font-size: 8px; letter-spacing: 0.5px; color: var(--muted); cursor: pointer;
+  border-style: solid; border-width: 5px 12px 5px 8px; border-image: url('assets/ui/button-normal.png') 5 12 5 8 fill / 5px 12px 5px 8px stretch;
+  background: none; padding: 1px 2px; image-rendering: pixelated; min-height: 24px;
+}
+.tab:hover { color: var(--text); border-image-source: url('assets/ui/button-hover.png'); }
+.tab.active { color: #fff; border-image-source: url('assets/ui/button-pressed.png'); }
+
+.content { overflow-y: auto; padding-right: 2px; min-height: 120px; }
+.content::-webkit-scrollbar { width: 6px; }
+.content::-webkit-scrollbar-thumb { background: #2a3342; }
+
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.card {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px;
+  background: rgba(13,20,32,0.85); border: 1px solid #253043; color: var(--text); cursor: pointer; padding: 6px 4px 6px;
+  font-family: 'ShadepiPixel', monospace; transition: background 0.1s, border-color 0.1s, transform 0.08s;
+}
+.card:hover { background: rgba(98,227,238,0.1); border-color: var(--cyan); }
+.card:active, .card.fired { transform: scale(0.96); background: rgba(98,227,238,0.22); }
+.card .ic { width: 56px; height: 56px; }
+.card .lbl { font-size: 16px; line-height: 15px; text-align: center; }
+.card small { font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); text-align: center; line-height: 9px; }
+.card.text { min-height: 52px; justify-content: center; }
+.card.on { border-color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan), 0 0 12px rgba(98,227,238,0.25); }
+.card.boss { border-color: #5a2747; }
+.card.boss:hover { border-color: var(--magenta); background: rgba(255,127,192,0.1); }
+.card.warn:hover { border-color: var(--warn); background: rgba(255,105,124,0.12); }
+
+.sys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.sys-grid .row { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 16px; padding: 3px 6px; background: rgba(13,20,32,0.85); border: 1px solid #253043; }
+.sys-grid .row span { min-width: 92px; }
+.sys-grid .row em { font-style: normal; font-family: Silkscreen, monospace; font-size: 9px; color: var(--cyan); min-width: 44px; text-align: right; }
+.sys-grid input[type=range] { flex: 1; accent-color: var(--cyan); }
+.sys-grid .radio button { flex: 1; font-family: Silkscreen, monospace; font-size: 8px; background: #0d1420; border: 1px solid #253043; color: var(--muted); padding: 5px 2px; cursor: pointer; }
+.sys-grid .radio button.on { color: #fff; border-color: var(--cyan); background: rgba(98,227,238,0.15); }
+.toggle { display: flex; justify-content: space-between; align-items: center; background: rgba(13,20,32,0.85); border: 1px solid #253043; color: var(--text); font-family: 'ShadepiPixel', monospace; font-size: 15px; padding: 4px 8px; cursor: pointer; }
+.toggle b { font-family: Silkscreen, monospace; font-size: 8px; font-weight: normal; color: var(--warn); }
+.toggle.on b { color: var(--cyan); }
+.toggle:hover { border-color: var(--cyan); }
+.actions { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+.act { flex: 1; font-family: Silkscreen, monospace; font-size: 8px; background: #0d1420; border: 1px solid #253043; color: var(--text); padding: 7px 4px; cursor: pointer; }
+.act:hover { border-color: var(--cyan); }
+.act.warn { color: var(--warn); }
+.act.warn:hover { border-color: var(--warn); }
+.status { font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); margin-top: 6px; }
+.hint { font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); margin: 8px 0 -10px; letter-spacing: 0.5px; }
