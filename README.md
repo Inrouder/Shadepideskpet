@@ -15,7 +15,7 @@ Ein Desktop-Maskottchen im Stil von **[ShadepiRPG](https://github.com/Inrouder/S
 ## Was passiert auf dem Bildschirm?
 
 - **Umschaltbar:** nur Shadepi, nur Raven, beide zusammen oder **abwechselnd** mit Schichtwechsel. In allen Einzelmodi kommt der Partner manchmal **zu Besuch** oder springt **im Kampf zur Hilfe** („Brauchst du Hilfe, Hutmann?“).
-- **Fenster beklettern:** Mit eigener Kletteranimation (Arme greifen abwechselnd, Hochziehen an der Kante). Raven setzt sich gern an die Fensterkante oder legt sich hin, Shadepi hält Wache. Die Figuren erkennen unter Windows alle sichtbaren Fenster, klettern an den Seitenkanten hoch (Raven nutzt bei zu hohen Kanten ihren Greifhaken, Shadepi den Schattensprung), springen von Fenster zu Fenster und lassen sich wieder fallen. Verdeckte Teile werden berücksichtigt, die Ecke mit Minimieren/Schließen bleibt frei.
+- **Fenster beklettern:** Raven schießt ihren Greifhaken an die Oberkante und zieht sich hoch, Shadepi läuft in Wandsprüngen an der Fensterkante hinauf – beides nur mit Originalposen aus dem Spiel. Liegen echte Kletterbilder vor (siehe unten), klettern beide richtig und ziehen sich über die Kante. Raven setzt sich gern an die Fensterkante oder legt sich hin, Shadepi hält Wache. Die Figuren erkennen unter Windows alle sichtbaren Fenster, klettern an den Seitenkanten hoch (Raven nutzt bei zu hohen Kanten ihren Greifhaken, Shadepi den Schattensprung), springen von Fenster zu Fenster und lassen sich wieder fallen. Verdeckte Teile werden berücksichtigt, die Ecke mit Minimieren/Schließen bleibt frei.
 - **Kämpfe:** Drohnenpatrouillen und -schwärme, Virusausbrüche aus einem Glitch-Riss, Cyberpunk-Gangs und Schützen, Kampfbots im Luftabwurf, **Boss ICE-Wächter** und **Boss Chrome Jackal**. Manchmal kämpft eine Figur allein, manchmal beide zusammen.
   - **Shadepi:** Katana-Kombos, Tritt, aufgeladener Schlag, Sprungschlag gegen Flieger, Wurfsterne und der Spezialangriff **Schattenschnitt** (Zeitlupe + Nachbilder).
   - **Raven:** Impulspistole (auch aus der Hocke), Kettenblitz gegen Viren, **Drohnen-Hack** (die Drohne kämpft dann für sie), Störsignal gegen schwere Gegner.
@@ -105,6 +105,16 @@ Alles unter `app/assets/` stammt aus **ShadepiRPG** und wird dort nicht verände
 python tools/build_assets.py ../ShadepiRPG
 ```
 
-Die Kletterbilder entstehen anschließend mit `python tools/build_climb.py` aus der Rückansicht der Heldenatlanten (Arme und Beine werden ausgeschnitten und bewegt, nichts neu gezeichnet).
-
 Das Skript liest nur, schneidet Requisiten und FX aus den Atlanten, misst die Fußpunkte der Kampfposen und schreibt `app/assets/manifest.js`. Die Sprechblasen, Löcher, Klebeband, Wartungsluke, Projektile und kleinen Power-up-Symbole werden zur Laufzeit gezeichnet.
+
+## Echte Kletterbilder ergänzen
+
+Die Helden in ShadepiRPG sind gemalte Keyframes (`tools/hero_sources/*-keyframes.png`, Vorgaben in `prompts.json`). Für Klettern, Hochziehen und Sitzen auf der Kante braucht es neue Keyframes im selben Stil:
+
+1. Mit demselben Bildwerkzeug wie die Spiel-Keyframes je Figur ein Blatt erzeugen – Vorgabe: `tools/climb_sources/prompts.json` (`raven` bzw. `shadepi`), als Referenz das jeweilige `*-keyframes.png` aus ShadepiRPG anhängen. Raster 1536×1024, 8×4 Zellen:
+   Reihe 1 Klettern (Rückansicht, 8 Phasen) · Reihe 2 Hochziehen auf die Kante · Reihe 3 Sitzen auf der Kante · Reihe 4 Klettern im Profil (4 × Ost, 4 × West).
+2. Speichern als `tools/climb_sources/raven-climb-keyframes.png` bzw. `shadepi-climb-keyframes.png`.
+3. `python tools/compile_climb.py` – packt die Bilder wie `compile_heroes.py` (Originalfarben, 50 %, Fußlinie 152) nach `app/assets/heroes/`.
+4. Versionsnummer erhöhen und pushen – das Update kommt automatisch an.
+
+Sobald die Bilder da sind, nutzt das Spiel sie von selbst: echtes Klettern (Profil an Fensterseiten), Hochziehen exakt an der Fensterkante und Sitzen auf der Kante auch für Shadepi. Sitzen Hände oder Füße einzelner Bilder nicht genau, lassen sie sich in `tools/climb_sources/<held>-offsets.json` pixelgenau verschieben.

@@ -1,7 +1,7 @@
 {
   "name": "shadepi-deskpet",
   "productName": "Shadepi Deskpet",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Desktop-Maskottchen im Stil von ShadepiRPG: Shadepi und Raven laufen über den Bildschirm, klettern Fenster hoch und kämpfen gegen Drohnen, Viren und Cyberpunks.",
   "main": "main/main.js",
   "author": "Inrouder",

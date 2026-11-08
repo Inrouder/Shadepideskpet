@@ -41,7 +41,7 @@ class Hero extends Entity {
   get dmgMult() { return this.buffs.core > 0 ? 2 : 1; }
   get jumpMax() { return this.def.jump * this.u; }
   resize() { this.w = 34 * this.u; this.h = 86 * this.u; }
-  get bubbleY() { const p = this.forcePose; return (p === 'sit' ? 74 : p === 'lie' ? 46 : 104) * this.u; }
+  get bubbleY() { const p = this.forcePose; return (p === 'sit' ? 74 : p === 'lie' ? 46 : p === 'climb' ? 112 : 104) * this.u; }
 
   say(key, arg, force) { return this.talk(line(this.name, key, arg), force); }
   talk(text, force) {
@@ -186,88 +186,144 @@ class Hero extends Entity {
     yield* this.jumpTo(clamp(this.x + dir * 60 * this.u, 20, this.world.terrain.W - 20), below.y, { arc: 25, quick: true });
   }
 
+  // Landepunkt auf der Oberkante neben der Kletterseite
+  topLanding(wall) {
+    const T = this.world.terrain, u = this.u;
+    const w = T.byId.get(wall.wid);
+    if (!w) return null;
+    const tops = T.surfaces.filter((q) => q.wid === wall.wid);
+    if (!tops.length) return null;
+    let x = (wall.side < 0 ? w.x : w.x + w.w) - wall.side * 30 * u;
+    const q = tops.sort((a, b) => Math.abs((a.x1 + a.x2) / 2 - x) - Math.abs((b.x1 + b.x2) / 2 - x))[0];
+    return { x: clamp(x, q.x1 + 10, q.x2 - 10), y: q.y, w };
+  }
+
   *climbWall(wall) {
     const W = this.world, u = this.u, T = W.terrain;
     const side = wall.side;
-    const win = T.byId.get(wall.wid);
-    if (!win) return false;
+    if (!T.byId.get(wall.wid)) return false;
     const outX = wall.x + side * 26 * u;
     yield* this.walkTo(outX, false, 5);
     if (Math.abs(this.x - outX) > 12 * u || !this.ground) return false;
     this.facing = -side;
     this.say('climb');
-    const reach = this.y - 100 * u;
+    if (!hasClimbArt(this.name)) return yield* this.ascendNoArt(wall);
+
+    // ---- echte Kletterbilder vorhanden
+    const S = this.S;
+    const handOff = (152 - CLIMB_ART.climbHandY) * S;   // Hand über dem Fußpunkt
     let startY = this.y;
-    if (wall.y2 < reach) {
-      // Wand beginnt zu hoch – hochspringen oder Haken
-      const gap = reach - wall.y2;
-      const grabY = wall.y2 + 100 * u;
-      if (gap > this.jumpMax) {
-        yield* this.leapTo(wall.x + side * 2 * u, grabY);
-        this.leaveGround(); this.gravity = 0;
-      } else {
+    if (wall.y2 < this.y - handOff) {
+      const grabY = wall.y2 + handOff;
+      if (this.y - grabY > this.jumpMax) { yield* this.leapTo(wall.x + side * 2 * u, grabY); }
+      else {
         this.forcePose = 'crouch'; yield* this.wait(0.1);
-        this.leaveGround(); this.gravity = 0;
         this.forcePose = 'jump';
         const y0 = this.y; let e = 0;
+        this.leaveGround(); this.gravity = 0;
         while (e < 0.32) { e += W.dt; const k = easeOut(Math.min(1, e / 0.32)); this.y = lerp(y0, grabY, k); this.x = lerp(outX, wall.x + side * 2 * u, k); yield; }
       }
       startY = this.y;
-    } else {
-      this.leaveGround(); this.gravity = 0;
     }
-    // Klettern
+    this.leaveGround(); this.gravity = 0;
     this.climbing = { wid: wall.wid, side };
     this.forcePose = 'climb';
-    let relY = startY - win.y;
-    const speed = 78 * u;
-    let pause = rnd(0.8, 1.6);
+    const w0 = T.byId.get(wall.wid);
+    let relY = startY - w0.y;
+    const speed = 70 * u;
     try {
-      while (relY > 92 * u) {
+      while (relY > handOff) {
         const w = T.byId.get(wall.wid);
-        const wallNow = T.wallsOf(wall.wid).find((x) => x.side === side);
-        if (!w || !wallNow || !this.climbing) { this.climbing = null; this.gravity = 1; this.forcePose = null; return false; }
-        pause -= W.dt;
-        if (pause < 0 && pause > -0.5) { yield; continue; }
-        if (pause <= -0.5) pause = rnd(0.9, 2);
+        if (!w || !T.wallsOf(wall.wid).some((x) => x.side === side) || !this.climbing) { this.forcePose = null; return false; }
         relY -= speed * W.dt;
         this.climbDist += speed * W.dt;
-        this.x = (side < 0 ? w.x : w.x + w.w) + side * 4 * u;
+        this.x = (side < 0 ? w.x : w.x + w.w) + side * 6 * u;
         this.y = w.y + relY;
         this.vx = this.vy = 0;
         yield;
       }
-      // Hochziehen auf die Oberkante
+      // Hochziehen: Bilder der Reihe „mantle“, jeweils an ihrer Kantenhöhe ausgerichtet
       this.climbing = null;
-      this.forcePose = 'jump';
-      const w = T.byId.get(wall.wid);
-      if (!w) return false;
-      const tops = T.surfaces.filter((q) => q.wid === wall.wid);
-      let x1 = (side < 0 ? w.x : w.x + w.w) - side * 30 * u;
-      if (tops.length) { const q = tops.sort((a, b) => Math.abs((a.x1 + a.x2) / 2 - x1) - Math.abs((b.x1 + b.x2) / 2 - x1))[0]; x1 = clamp(x1, q.x1 + 10, q.x2 - 10); }
-      const x0 = this.x, y0 = this.y;
-      let e = 0;
-      // Hochziehen: Arme oben, Körper hebt sich über die Kante
+      const land = this.topLanding(wall);
+      if (!land) return false;
+      const x0 = this.x;
       this.forcePose = 'mantle';
       Sound.play('drive_knock', 0.2, 0.7);
-      const lift = 0.5;
-      while (e < lift) {
-        e += W.dt; const k = easeInOut(Math.min(1, e / lift));
-        const wn = T.byId.get(wall.wid) || w;
-        this.x = (side < 0 ? wn.x : wn.x + wn.w) + side * 4 * u;
-        this.y = lerp(y0 - w.y, 6 * u, k) + wn.y;
+      const dur = 1.25;
+      for (let e = 0; e < dur; e += W.dt) {
+        const k = Math.min(0.999, e / dur);
+        this.mantleK = Math.floor(k * 8);
+        const w = T.byId.get(wall.wid) || land.w;
+        const edge = (side < 0 ? w.x : w.x + w.w);
+        // ab Phase 5 (Knie auf der Kante) nach innen rücken
+        const inward = clamp((k - 0.55) / 0.45, 0, 1);
+        this.x = lerp(edge + side * 6 * u, edge - side * 30 * u, easeInOut(inward));
+        this.y = w.y;
         yield;
       }
-      this.forcePose = 'crouch'; e = 0;
-      const y2 = this.y;
-      const hop = clamp(Math.abs(x1 - x0) / (300 * u), 0.22, 0.6);
-      while (e < hop) { e += W.dt; const k = easeOut(Math.min(1, e / hop)); this.x = lerp(x0, x1, k); this.y = lerp(y2, w.y, k) - Math.sin(k * Math.PI) * 14 * u; yield; }
-      const s = T.surfaceOf(wall.wid, x1, 4);
+      const s = T.surfaceOf(wall.wid, this.x, 6);
       this.gravity = 1;
-      if (s) { this.land(s, 200); this.facing = -side; return true; }
+      if (s) { this.land(s, 0); this.facing = -side; return true; }
       return false;
     } finally {
       this.climbing = null; this.gravity = 1; if (['climb', 'jump', 'mantle', 'crouch'].includes(this.forcePose)) this.forcePose = null;
+    }
+  }
+
+  // Ohne Kletterbilder: nur echte Spielposen – Raven nimmt den Greifhaken, Shadepi läuft die Kante hoch
+  *ascendNoArt(wall) {
+    const land = this.topLanding(wall);
+    if (!land) return false;
+    if (this.name === 'raven') { yield* this.leapTo(land.x, land.y); return this.wid === wall.wid; }
+    return yield* this.wallKicks(wall);
+  }
+
+  // Shadepis Wandsprünge: im Zickzack an der Fensterkante hoch (Knie-Sprungpose aus dem Spiel)
+  *wallKicks(wall) {
+    const W = this.world, u = this.u, T = W.terrain, side = wall.side;
+    this.leaveGround(); this.gravity = 0;
+    try {
+      let w = T.byId.get(wall.wid);
+      if (!w) return false;
+      const steps = Math.max(1, Math.ceil((this.y - w.y) / (140 * u)));
+      this.forcePose = 'crouch';
+      yield* this.wait(0.12);
+      for (let i = 0; i < steps; i++) {
+        w = T.byId.get(wall.wid);
+        if (!w) return false;
+        const edge = side < 0 ? w.x : w.x + w.w;
+        const x0 = this.x, y0 = this.y;
+        const x1 = edge + side * (i % 2 ? 34 : 12) * u;
+        const y1 = i === steps - 1 ? w.y + 10 * u : y0 - (y0 - w.y) / (steps - i);
+        this.facing = i % 2 ? -side : side;
+        this.forcePose = 'pose'; this.poseRow = 1; this.forceDir = null;
+        Sound.play('drive_knock', 0.35, 1.3 + i * 0.1);
+        W.fx.dust(edge, y0 - 20 * u, 3, 0.7 * u);
+        const dur = 0.24;
+        for (let e = 0; e < dur; e += W.dt) {
+          const k = easeOut(Math.min(1, e / dur));
+          this.x = lerp(x0, x1, k); this.y = lerp(y0, y1, k);
+          if (chance(W.dt * 30)) W.fx.streak(this.x, this.y - 30 * u, this.x, this.y - 60 * u, 'rgba(255,49,80,0.35)', 0.2, 4);
+          yield;
+        }
+      }
+      // Abschluss: Bogen auf die Oberkante
+      const land = this.topLanding(wall);
+      if (!land) return false;
+      const x0 = this.x, y0 = this.y;
+      this.facing = sign(land.x - x0) || -side;
+      this.forcePose = 'jump';
+      for (let e = 0; e < 0.3; e += W.dt) {
+        const k = easeOut(Math.min(1, e / 0.3));
+        this.x = lerp(x0, land.x, k); this.y = lerp(y0, land.y, k) - Math.sin(k * Math.PI) * 40 * u;
+        yield;
+      }
+      const s = T.surfaceOf(wall.wid, land.x, 6);
+      this.gravity = 1;
+      if (s) { this.land(s, 300); W.fx.dust(this.x, this.y, 5, u); return true; }
+      return false;
+    } finally {
+      this.gravity = 1; if (['pose', 'jump', 'crouch'].includes(this.forcePose)) this.forcePose = null;
     }
   }
 
@@ -667,7 +723,7 @@ class Hero extends Entity {
       case 'pickup': this.setTask('pickup', this.fetch(pickups.sort((a, b) => Math.abs(a.x - this.x) - Math.abs(b.x - this.x))[0]), 1); break;
       case 'toy': this.setTask('toy', this.playWith(pick(toys)), 1); break;
       case 'nap': this.setTask('nap', this.nap(), 0.5); break;
-      case 'rest': this.setTask('rest', raven ? this.sit() : this.guard(), 0.5); break;
+      case 'rest': this.setTask('rest', raven || hasClimbArt(this.name) ? this.sit() : this.guard(), 0.5); break;
       case 'hackWin': this.setTask('hackWin', this.hackWindow(), 0.6); break;
     }
   }
@@ -711,9 +767,11 @@ class Hero extends Entity {
       if (win && win.title && chance(0.5)) this.say('windowTop', win.title.length > 28 ? win.title.slice(0, 26) + '…' : win.title);
       else this.say('idle');
     }
+    this.sitFrame = 0;
     for (let e = 0; e < dur; e += W.dt) {
       if (chance(W.dt * 0.08)) this.facing = -this.facing;
-      if (chance(W.dt * 0.03)) this.say('idle');
+      if (chance(W.dt * 0.2)) this.sitFrame = weighted([[0, 5], [1, 1], [2, 1], [3, 1.5], [4, 1], [5, 1], [6, isNight() ? 2 : 0.3]]);
+      if (chance(W.dt * 0.03)) { this.say('idle'); if (hasClimbArt(this.name) && chance(0.5)) this.sitFrame = 7; }
       yield;
     }
     this.forcePose = null;
@@ -1302,11 +1360,21 @@ class Hero extends Entity {
         drawAtlas(ctx, img, GROUP.walk, fd ?? side, Math.floor(this.animT * fps) % 8, x, y, S, opts);
         break;
       }
-      case 'climb': case 'mantle': {
-        const strip = IMG[this.name + '-climb'];
-        const fr = pose === 'mantle' ? 0 : Math.floor(this.climbDist / (7 * u)) % 8;
-        if (strip) drawRegion(ctx, strip, fr * 128, 0, 128, 160, 64, 152, x, y, S, opts);
-        else drawAtlas(ctx, img, GROUP.walk, DIR.up, fr, x, y, S, opts);
+      case 'climb': {
+        const side = this.climbing ? this.climbing.side : -f;
+        const prof = IMG[this.name + '-climbside'];
+        const back = IMG[this.name + '-climb'];
+        const step = Math.floor(this.climbDist / (9 * u));
+        if (prof) { const fr = (side < 0 ? 0 : 4) + (step % 4); drawRegion(ctx, prof, fr * 128, 0, 128, 160, 64, 152, x, y, S, opts); }
+        else if (back) drawRegion(ctx, back, (step % 8) * 128, 0, 128, 160, 64, 152, x, y, S, opts);
+        else drawAtlas(ctx, img, GROUP.walk, DIR.up, step % 8, x, y, S, opts);
+        break;
+      }
+      case 'mantle': {
+        const strip = IMG[this.name + '-mantle'];
+        const k = clamp(this.mantleK || 0, 0, 7);
+        if (strip) drawRegion(ctx, strip, k * 128, 0, 128, 160, 64, CLIMB_ART.mantleLedgeY[k], x, y, S, opts);
+        else drawAtlas(ctx, img, GROUP.idle, DIR.up, 0, x, y, S, opts);
         break;
       }
       case 'attack': {
@@ -1348,9 +1416,12 @@ class Hero extends Entity {
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
         } else drawPose(ctx, 0, side, x, y, S, opts);
         break;
-      case 'sit':
-        if (!drawRest(ctx, 'raven-sit', x, y, S, { ...opts, flip: f < 0 })) drawAtlas(ctx, img, GROUP.idle, DIR.down, 0, x, y, S, opts);
+      case 'sit': {
+        const ledge = IMG[this.name + '-ledge'];
+        if (ledge) { const fr = this.sitFrame || 0; drawRegion(ctx, ledge, fr * 128, 0, 128, 160, 64, CLIMB_ART.ledgeSeatY, x, y, S, opts); }
+        else if (!drawRest(ctx, 'raven-sit', x, y, S, { ...opts, flip: f < 0 })) drawAtlas(ctx, img, GROUP.idle, DIR.down, 0, x, y, S, opts);
         break;
+      }
       case 'lie':
         if (!drawRest(ctx, 'raven-lie', x, y, S, { ...opts, flip: f < 0 })) drawAtlas(ctx, img, GROUP.idle, DIR.down, 0, x, y, S, opts);
         break;

@@ -2,9 +2,12 @@
 'use strict';
 
 const MANIFEST = window.PET_MANIFEST || {};
+// Echte Kletter-/Kantenbilder (tools/compile_climb.py) – nur vorhanden, wenn erzeugt
+const CLIMB_ART = window.PET_CLIMB_ART || { heroes: [], mantleLedgeY: [], ledgeSeatY: 92, climbHandY: 42 };
+const hasClimbArt = (name) => (CLIMB_ART.heroes || []).includes(name) && !!IMG[name + '-climb'];
 const IMG = {};
 const IMAGE_FILES = {
-  shadepi: 'heroes/shadepi.png', raven: 'heroes/raven.png', poses: 'heroes/combat-poses.png', 'raven-sit': 'heroes/raven-sit.png', 'raven-lie': 'heroes/raven-lie.png', 'raven-climb': 'heroes/raven-climb.png', 'shadepi-climb': 'heroes/shadepi-climb.png',
+  shadepi: 'heroes/shadepi.png', raven: 'heroes/raven.png', poses: 'heroes/combat-poses.png', 'raven-sit': 'heroes/raven-sit.png', 'raven-lie': 'heroes/raven-lie.png',
   'punk-1': 'enemies/punk-1.png', 'punk-2': 'enemies/punk-2.png', 'punk-3': 'enemies/punk-3.png', 'punk-4': 'enemies/punk-4.png',
   'shooter-visor': 'enemies/shooter-visor.png', 'shooter-violet': 'enemies/shooter-violet.png', jackal: 'enemies/jackal.png',
   bot: 'enemies/bot.png', virus: 'enemies/virus.png', ice: 'enemies/ice.png', drone: 'enemies/drone.png',
@@ -14,6 +17,8 @@ const IMAGE_FILES = {
 for (const n of ['crate', 'barrel', 'server', 'holocube', 'vending', 'fusebox']) {
   for (const s of ['intact', 'damaged', 'broken']) IMAGE_FILES[`${n}-${s}`] = `props/${n}-${s}.png`;
 }
+
+for (const n of CLIMB_ART.heroes || []) for (const k of ['climb', 'mantle', 'ledge', 'climbside']) IMAGE_FILES[`${n}-${k}`] = `heroes/${n}-${k}.png`;
 
 function loadImages() {
   return Promise.all(Object.entries(IMAGE_FILES).map(([k, f]) => new Promise((res) => {
