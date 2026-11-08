@@ -7,6 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const { WindowScanner, toOverlaySpace } = require('./windows');
 const { Updater } = require('./updater');
+const { Sensors } = require('./sensors');
+let sensors = null;
 let updater = null;
 let gameDetect = null;
 let gaming = { active: false, name: '', exe: '', reason: '', since: 0 };
@@ -35,6 +37,8 @@ const DEFAULTS = {
   gamePause: true,
   gameOwn: [],
   gameIgnore: [],
+  sysReports: true,
+  romance: true,
 };
 
 let overlay = null;
@@ -145,7 +149,8 @@ function setSetting(key, value) {
 const EVENTS = [
   ['drohnen', 'Drohnenpatrouille'], ['schwarm', 'Drohnenschwarm'], ['viren', 'Virusausbruch'],
   ['gang', 'Cyberpunk-Gang'], ['bots', 'Kampfbots'], ['ice', 'Boss: ICE-Wächter'], ['jackal', 'Boss: Chrome Jackal'],
-  ['training', 'Shadepi trainiert'], ['luke', 'Raven repariert Kabel'], ['besuch', 'Partner kommt vorbei'], ['sparring', 'Sparring'],
+  ['training', 'Shadepi trainiert'], ['luke', 'Raven repariert Kabel'], ['system', 'Raven: Systembericht'], ['besuch', 'Partner kommt vorbei'], ['sparring', 'Sparring'],
+  ['blick', 'Verliebter Blick'], ['bluete', 'Shadepis Lichtblüte'],
 ];
 
 function buildTray() {
@@ -169,7 +174,7 @@ function buildTray() {
     { label: 'Aktivität', submenu: [radio('Ruhig', 'activity', 'ruhig'), radio('Normal', 'activity', 'normal'), radio('Chaos', 'activity', 'chaos')] },
     { label: 'Einstellungen', submenu: [
       check('Kino-Effekte', 'cinematic'), check('Bildschirmschäden (Löcher, Luke)', 'screenDamage'), check('Fenster beklettern', 'climbWindows'),
-      check('Bei Spielen pausieren', 'gamePause'), check('Sprechblasen', 'bubbles'), check('Kampfmusik', 'music'), check('Bei Vollbild ausblenden', 'hideFullscreen'), check('Seitenleiste anzeigen', 'dock'),
+      check('Bei Spielen pausieren', 'gamePause'), check('Systemberichte (Raven)', 'sysReports'), check('Romantische Momente', 'romance'), check('Sprechblasen', 'bubbles'), check('Kampfmusik', 'music'), check('Bei Vollbild ausblenden', 'hideFullscreen'), check('Seitenleiste anzeigen', 'dock'),
       { label: 'Bildschirm', submenu: displays.map((d, i) => radio(`Bildschirm ${i + 1} (${d.bounds.width}×${d.bounds.height})`, 'display', i)) },
     ] },
     { type: 'separator' },
@@ -252,6 +257,10 @@ if (!app.requestSingleInstanceLock()) {
     if (gameDetect) { setInterval(checkGames, 2500); setTimeout(checkGames, 1500); }
     else setInterval(() => send('games', { supported: false }), 5000);
 
+    sensors = new Sensors((d) => { sensors.paused = gamePaused(); send('sensors', d); }, log);
+    setTimeout(() => sensors.start(), 4000);
+    setInterval(() => { if (sensors) sensors.paused = gamePaused(); }, 2000);
+
     updater = new Updater((ch, st) => { send(ch, st); if (st.state === 'ready' || st.state === 'none') buildTray(); }, log);
     updater.start();
 
@@ -301,6 +310,6 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('hide', () => toggleVisible());
   ipcMain.on('autostart', (_e, on) => setAutostart(on));
 
-  app.on('will-quit', () => { globalShortcut.unregisterAll(); if (scanner) scanner.stop(); });
+  app.on('will-quit', () => { globalShortcut.unregisterAll(); if (scanner) scanner.stop(); if (sensors) sensors.stop(); });
   app.on('window-all-closed', () => app.quit());
 }

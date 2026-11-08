@@ -32,6 +32,9 @@ jobs:
       - name: Spielerkennung testen
         run: node main/games.js
 
+      - name: Systemsensoren testen
+        run: node main/sensors.js
+
       - name: Fensterscanner testen (PowerShell)
         shell: pwsh
         run: |

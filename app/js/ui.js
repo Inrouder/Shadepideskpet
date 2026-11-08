@@ -112,7 +112,7 @@ class UI {
       card('ICE-Wächter', 'Boss', this.icon('foe', 'ice'), () => D.startEvent('ice'), 'boss');
       card('Chrome Jackal', 'Boss', this.icon('foe', 'jackal'), () => D.startEvent('jackal'), 'boss');
     } else if (this.tab === 'scenes') {
-      for (const id of ['drohnen', 'schwarm', 'viren', 'gang', 'bots', 'training', 'luke', 'besuch', 'sparring', 'plaudern', 'ball', 'wechsel']) card(EVENT_LABELS[id], '', null, () => D.startEvent(id), 'text');
+      for (const id of ['drohnen', 'schwarm', 'viren', 'gang', 'bots', 'training', 'luke', 'system', 'besuch', 'sparring', 'plaudern', 'ball', 'blick', 'bluete', 'wechsel']) card(EVENT_LABELS[id], '', null, () => D.startEvent(id), 'text');
       card('Alles aufräumen', 'Gegner & Spielzeug weg', null, () => W.clearAll(), 'text warn');
     } else if (this.tab === 'cast') {
       const modes = [['shadepi', 'Shadepi', 'nur er (mit Besuchen)'], ['raven', 'Raven', 'nur sie (mit Besuchen)'], ['beide', 'Beide', 'immer zusammen'], ['wechselnd', 'Abwechselnd', 'Schichtwechsel & Besuche']];
@@ -161,6 +161,8 @@ class UI {
     toggle('Kampfmusik', 'music');
     toggle('Bei Vollbild ausblenden', 'hideFullscreen');
     toggle('Bei Spielen pausieren', 'gamePause');
+    toggle('Systemberichte (Raven)', 'sysReports');
+    toggle('Romantische Momente', 'romance');
     toggle('Seitenleiste', 'dock');
     toggle('Ruhemodus', 'paused');
     const actions = document.createElement('div'); actions.className = 'actions';

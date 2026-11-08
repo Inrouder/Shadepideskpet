@@ -101,6 +101,16 @@ class FX {
   streak(x1, y1, x2, y2, color, life = 0.3, w = 10) { this.add({ type: 'streak', x1, y1, x2, y2, color, life, w }); }
   smokePuff(x, y, scale = 0.6, alpha = 0.8) { this.add({ type: 'strip', img: 'smoke', x, y, vx: rnd(-15, 15), vy: -25, g: 0, life: 0.9, frames: 4, scale, alpha }); }
   fire(x, y, life = 2.5, scale = 0.5) { this.add({ type: 'strip', img: 'fire', x, y, life, frames: 4, loop: 0.12, scale, anchorBottom: true }); }
+  hearts(x, y, n = 6, spread = 1) {
+    for (let i = 0; i < n; i++) {
+      this.add({ type: 'heart', x: x + rnd(-14, 14) * spread, y: y + rnd(-6, 6), vx: rnd(-18, 18), vy: rnd(-70, -40), g: 0, drag: 0.995, life: rnd(1.6, 2.6), size: rnd(2, 3.2), phase: rnd(0, 6), color: pick(['#ff7fc0', '#ff4f9a', '#ff9ed2', '#ff3150']), delay: i * 0.12 });
+    }
+  }
+  petals(x, y, w, n = 10) {
+    for (let i = 0; i < n; i++) {
+      this.add({ type: 'petal', layer: 'top', x: x + rnd(-w / 2, w / 2), y: y + rnd(-40, 0), vx: rnd(-20, 20), vy: rnd(18, 45), g: 0, life: rnd(2.5, 4.2), rot: rnd(0, 6), spin: rnd(-3, 3), phase: rnd(0, 6), size: rnd(3, 5) });
+    }
+  }
   speedLines(x, y, dir, color = 'rgba(255,255,255,0.6)') {
     for (let i = 0; i < 8; i++) this.add({ type: 'line', x: x + rnd(-30, 30), y: y - rnd(10, 90), dx: -dir * rnd(40, 110), life: rnd(0.15, 0.3), color });
   }
@@ -193,11 +203,74 @@ function drawParticle(ctx, p, world) {
     case 'line':
       ctx.globalAlpha = 1 - k; ctx.strokeStyle = p.color; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.dx, p.y); ctx.stroke(); break;
+    case 'heart': {
+      const t = p.t - (p.delay || 0);
+      if (t < 0) break;
+      const k2 = t / (p.life - (p.delay || 0));
+      const pop = Math.min(1, t * 6);
+      ctx.globalAlpha = Math.min(1, (1 - k2) * 2) * pop;
+      ctx.translate(p.x + Math.sin(t * 4 + p.phase) * 8, p.y);
+      ctx.scale(pop * (1 + 0.08 * Math.sin(t * 10)), pop * (1 + 0.08 * Math.sin(t * 10)));
+      const c = p.size;
+      // Pixel-Herz (7×6)
+      const H = ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'];
+      ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+      ctx.fillStyle = p.color;
+      H.forEach((row, yy) => { for (let xx = 0; xx < 7; xx++) if (row[xx] === '1') ctx.fillRect((xx - 3.5) * c, (yy - 3) * c, c + 0.4, c + 0.4); });
+      ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(-2.5 * c, -2 * c, c, c);
+      break;
+    }
+    case 'petal': {
+      ctx.globalAlpha = Math.min(1, (1 - k) * 2.5) * Math.min(1, p.t * 3);
+      ctx.translate(p.x + Math.sin(p.t * 2.2 + p.phase) * 18, p.y);
+      ctx.rotate(p.rot);
+      ctx.scale(1, 0.55 + 0.45 * Math.abs(Math.sin(p.t * 3 + p.phase)));
+      const g = ctx.createLinearGradient(-p.size, 0, p.size, 0);
+      g.addColorStop(0, '#ffd6e8'); g.addColorStop(1, '#ff8fbf');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fillRect(-p.size * 0.6, -0.5, p.size * 0.6, 1);
+      break;
+    }
+    case 'blossom': drawBlossom(ctx, p); break;
     case 'shockwave':
       ctx.globalAlpha = (1 - k) * 0.8; ctx.strokeStyle = p.color; ctx.lineWidth = 6 * (1 - k) + 1; ctx.shadowColor = p.color; ctx.shadowBlur = 20;
       ctx.beginPath(); ctx.ellipse(p.x, p.y, lerp(10, p.r, easeOut(k)), lerp(4, p.r * 0.28, easeOut(k)), 0, 0, Math.PI * 2); ctx.stroke(); break;
   }
   ctx.restore();
+}
+
+// Lichtblüte (Shadepis Geschenk): fünf Kirschblütenblätter aus Licht, roter Kern wie seine Klinge
+function drawBlossom(ctx, p) {
+  const grow = easeOut(Math.min(1, p.t / 0.6));
+  const fade = Math.min(1, (p.life - p.t) / 0.8);
+  const r = p.r * grow;
+  ctx.globalAlpha = fade;
+  ctx.translate(p.x, p.y + Math.sin(p.t * 2.4) * 3);
+  ctx.rotate(p.t * 0.6);
+  const glow = ctx.createRadialGradient(0, 0, 1, 0, 0, r * 2.4);
+  glow.addColorStop(0, 'rgba(255,170,210,0.55)'); glow.addColorStop(1, 'rgba(255,120,180,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, r * 2.4, 0, Math.PI * 2); ctx.fill();
+  for (let i = 0; i < 5; i++) {
+    ctx.save();
+    ctx.rotate((i / 5) * Math.PI * 2);
+    const g = ctx.createLinearGradient(0, 0, 0, -r * 1.25);
+    g.addColorStop(0, '#ffd9ea'); g.addColorStop(1, '#ff8ec0');
+    ctx.fillStyle = g; ctx.shadowColor = '#ff9ed2'; ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(r * 0.7, -r * 0.35, r * 0.6, -r * 1.15, r * 0.12, -r * 1.25);
+    ctx.lineTo(0, -r * 1.12);
+    ctx.lineTo(-r * 0.12, -r * 1.25);
+    ctx.bezierCurveTo(-r * 0.6, -r * 1.15, -r * 0.7, -r * 0.35, 0, 0);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.shadowColor = COLORS.red; ctx.shadowBlur = 12; ctx.fillStyle = COLORS.red;
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0; ctx.fillStyle = '#ffe1ec';
+  for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2 + 0.6; ctx.fillRect(Math.cos(a) * r * 0.45 - 1, Math.sin(a) * r * 0.45 - 1, 2, 2); }
 }
 
 // ------------------------------------------------------------ Sprechblasen
@@ -227,6 +300,8 @@ class Bubbles {
   }
   draw(ctx) {
     const placed = [];
+    const avoid = [];
+    if (this.list.length) for (const el of document.querySelectorAll('.holo, .remcard')) { const r = el.getBoundingClientRect(); avoid.push({ x: r.left, y: r.top, w: r.width, h: r.height }); }
     ctx.save();
     for (const b of this.list) {
       const shown = b.text.slice(0, Math.ceil(b.t * 45));
@@ -238,6 +313,14 @@ class Bubbles {
       let x = clamp(b.who.x - w / 2, 6, this.world.terrain.W - w - 6);
       let y = headY - h - 16;
       for (const p of placed) if (x < p.x + p.w && x + w > p.x && y < p.y + p.h && y + h > p.y) y = p.y - h - 6;
+      // Hologramme/Karten nicht verdecken: seitlich ausweichen
+      for (const r of avoid) {
+        if (x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y) {
+          const left = r.x - w - 8, right = r.x + r.w + 8;
+          x = (b.who.x < r.x + r.w / 2 && left > 6) || right + w > this.world.terrain.W - 6 ? left : right;
+          x = clamp(x, 6, this.world.terrain.W - w - 6);
+        }
+      }
       if (y < 6) y = headY + 40;
       placed.push({ x, y, w, h });
       const appear = Math.min(1, b.t * 8), vanish = Math.min(1, (b.life - b.t) * 4);

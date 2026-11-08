@@ -5,7 +5,7 @@
 const DEFAULT_SETTINGS = {
   mode: 'wechselnd', size: 0.72, volume: 0.55, activity: 'normal', cinematic: true, screenDamage: true, music: false,
   bubbles: true, hideFullscreen: true, climbWindows: true, display: 0, dock: true, paused: false, debug: false,
-  reminders: [], chime: false, breakEvery: 0, drinkEvery: 0, gamePause: true, gameOwn: [], gameIgnore: [],
+  reminders: [], chime: false, breakEvery: 0, drinkEvery: 0, gamePause: true, gameOwn: [], gameIgnore: [], sysReports: true, romance: true,
 };
 
 // ---------------------------------------------------------------- Browser-Vorschau
@@ -138,6 +138,9 @@ class DemoWindows {
   ui = new UI(world, bridge, api);
   const reminders = new Reminders(world, api, bridge);
   world.reminders = reminders;
+  const sys = new SysReport(world, bridge);
+  world.sys = sys;
+  if (bridge) bridge.on('sensors', (d) => sys.onData(d));
   const updates = new UpdateUI(world, bridge);
   world.updates = updates;
   if (bridge) {
@@ -155,7 +158,7 @@ class DemoWindows {
   const input = new Input(world, ui, bridge);
   director.setup();
   applySettings();
-  Object.assign(window.PET, { director, ui, input, api, reminders, updates });
+  Object.assign(window.PET, { director, ui, input, api, reminders, updates, sys });
 
   if (params.get('event')) setTimeout(() => director.startEvent(params.get('event')), +(params.get('delay') || 1500));
   if (params.has('menu')) setTimeout(() => ui.open(innerWidth * 0.55, innerHeight * 0.35), 400);
@@ -170,6 +173,7 @@ class DemoWindows {
     input.update(Math.min(dt, 0.05));
     reminders.update((now - (frame.prev || now)) / 1000);
     updates.update();
+    sys.update();
     frame.prev = now;
     world.update(dt);
     world.draw();

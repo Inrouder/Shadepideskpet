@@ -33,6 +33,19 @@ Im Menü unter **Wecker**:
 
 Wenn es so weit ist, kommen Shadepi und/oder Raven zu deinem Mauszeiger gelaufen. Raven projiziert ein Hologramm, Shadepi springt auf und ab, dazu Letterbox, Titelkarte und Alarmton. Eine Karte über den beiden bietet **Erledigt**, **+5 Min** und **+10 Min**. Ignorierst du sie, werden die beiden ungeduldig. Zusätzlich erscheint eine Windows-Benachrichtigung. Der nächste Countdown steht klein an der Seitenleiste.
 
+## Ravens Systembericht
+
+Ab und zu (und über Menü → Szenen → „Systembericht“) projiziert Raven ein Hologramm mit den echten Werten deines Rechners und kommentiert sie: **CPU-Auslastung und -Temperatur, GPU-Auslastung und -Temperatur, Arbeitsspeicher, Netzwerk-Datenrate (↓/↑) und Laufzeit**. Wird es kritisch, meldet sie sich von selbst: Prozessor über 88 °C, Grafikkarte über 85 °C, längere Volllast, fast voller Arbeitsspeicher oder ein großer Download.
+
+- CPU-Last, RAM und Netzwerk kommen direkt von Windows.
+- GPU: bei NVIDIA über `nvidia-smi` (Last + Temperatur), sonst die Auslastung über die Windows-Leistungsindikatoren.
+- Temperaturen ohne Administratorrechte über die ACPI-Thermalzone (ungefährer Wert). **Genaue CPU-/GPU-Temperaturen** gibt es, wenn [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) im Hintergrund läuft – Raven liest es automatisch aus.
+- Abschaltbar im Menü (System → „Systemberichte (Raven)“).
+
+## Zweisamkeit
+
+Erscheint Shadepi, schaut Raven ihn oft an und es steigen kleine Herzen auf („Da ist er ja…“). Shadepi zeigt es auf seine Art: Mit einem Klingenhieb erschafft er eine **Kirschblüte aus Licht**, schenkt sie ihr, und Blütenblätter rieseln – danach dreht er sich verlegen weg. Abschaltbar unter System → „Romantische Momente“.
+
 ## Spielmodus
 
 Startest du ein Spiel, legt sich das Maskottchen komplett schlafen: Das Overlay verschwindet, nichts wird mehr gezeichnet, kein Ton, keine Ereignisse. Erst wenn das Spiel beendet ist, kommen die beiden zurück und fragen, wie es lief.

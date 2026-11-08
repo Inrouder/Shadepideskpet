@@ -6,6 +6,7 @@ const EVENT_LABELS = {
   drohnen: 'Drohnenpatrouille', schwarm: 'Drohnenschwarm', viren: 'Virusausbruch', gang: 'Cyberpunk-Gang', bots: 'Kampfbots',
   ice: 'Boss: ICE-Wächter', jackal: 'Boss: Chrome Jackal', training: 'Shadepi trainiert', luke: 'Raven repariert Kabel',
   besuch: 'Partner kommt vorbei', sparring: 'Sparring', plaudern: 'Plaudern', ball: 'Ballspiel', wechsel: 'Schichtwechsel',
+  system: 'Systembericht', blick: 'Verliebter Blick', bluete: 'Shadepis Lichtblüte',
 };
 
 function timeGreeting() {
@@ -70,9 +71,12 @@ class Director {
     h.x = clamp(W.mouse.active && style === 'cursor' ? W.mouse.x : rnd(T.W * 0.2, T.W * 0.8), 60, T.W - 60);
     h.y = T.floorY;
     if (style === 'quiet') { h.land(T.surfaces[0], 0); h.alpha = 0; h.setTask('arrive', (function* () { for (let e = 0; e < 0.8; e += W.dt) { h.alpha = e / 0.8; yield; } h.alpha = 1; h.say(timeGreeting()); })(), 5); return; }
+    const D = this;
     h.setTask('arrive', (function* () {
       yield* h.arrive(style || (h.name === 'shadepi' ? pick(['drop', 'shadow']) : 'rope'));
       if (W.hasEnemies()) h.say('join', null, true); else h.say('arrive', null, true);
+      const ra = W.hero('raven');
+      if (h.name === 'shadepi' && !W.hasEnemies() && D.S.romance && ra && !ra.absent && chance(0.65)) D.run(D.lovingLook(true));
     })(), 5);
   }
 
@@ -135,6 +139,8 @@ class Director {
       ['besuch', !both && this.S.mode !== 'beide' ? 1.6 : 0],
       ['sparring', both ? 1.2 : 0], ['plaudern', both ? 1.4 : 0], ['ball', both ? 0.8 : 0],
       ['wechsel', this.S.mode === 'wechselnd' && !both ? 0.6 : 0],
+      ['system', hasRa && this.S.sysReports && W.sys && W.sys.data ? 1.3 : 0],
+      ['blick', both && this.S.romance ? 0.9 : 0], ['bluete', both && this.S.romance ? 0.7 : 0],
     ].filter(([id]) => id !== this.lastEvent || chance(0.2)));
   }
 
@@ -172,6 +178,9 @@ class Director {
       case 'plaudern': if (present.length === 2) this.run(this.chat()); break;
       case 'ball': if (present.length === 2) this.run(this.ballGame()); break;
       case 'alles-weg': W.clearAll(); break;
+      case 'system': if (W.sys) W.sys.report(); break;
+      case 'blick': if (present.length === 2) this.run(this.lovingLook()); break;
+      case 'bluete': if (present.length === 2) this.run(this.flowerGift()); break;
     }
   }
 
@@ -362,6 +371,92 @@ class Director {
     setTimeout(() => { if (!h.task) h.faceCam = false; }, 2500);
     const p = hs.find((x) => x !== h);
     if (p) setTimeout(() => p.talk(p.name === 'raven' ? 'Und? Erzähl!' : '…Willkommen zurück.', true), 2600);
+  }
+
+  // -------------------------------------------------- Zweisamkeit
+  *lovingLook(arrival = false) {
+    const W = this.world, u = W.u;
+    const ra = W.hero('raven'), sh = W.hero('shadepi');
+    if (!ra || !sh || ra.absent || sh.absent || ra.ko || ra.dragged || (ra.task && ra.taskPrio >= 2)) return;
+    let done = false;
+    ra.setTask('love', (function* () {
+      ra.faceCam = false; ra.forcePose = null;
+      while (!done) { ra.walkVx = 0; ra.facing = sign(sh.x - ra.x) || ra.facing; yield; }
+    })(), 1.8);
+    yield* this.both(arrival ? 0.6 : 0.3);
+    Sound.play('legacy_transfer', 0.25, 1.8);
+    for (let e = 0, k = 0; e < 2.4; e += W.dt) {
+      if (e > k * 0.35) { k++; W.fx.hearts(ra.x + ra.facing * 8 * u, ra.y - 98 * u, 2, 0.8); }
+      yield;
+    }
+    if (chance(0.55)) ra.talk(pick(arrival ? ['Da ist er ja…', 'Hey, Hutmann.', 'Mein Lieblingsninja.'] : ['Hach…', 'Er sieht gut aus heute.', 'Hutmann…']), true);
+    yield* this.both(1.4);
+    if (!sh.dragged && !sh.ko && (!sh.task || sh.taskPrio < 2) && chance(0.6)) {
+      sh.facing = sign(ra.x - sh.x) || sh.facing; sh.faceCam = false;
+      sh.talk(pick(['…Was ist?', 'Du starrst.', '…']), true);
+      yield* this.both(1.6);
+      ra.talk(pick(['Nichts!', 'Gar nichts.', 'Darf ich nicht?']), true);
+      W.fx.hearts(ra.x, ra.y - 98 * u, 3, 0.6);
+      yield* this.both(1.6);
+    }
+    done = true;
+  }
+
+  *flowerGift() {
+    const W = this.world, u = W.u, T = W.terrain;
+    const ra = W.hero('raven'), sh = W.hero('shadepi');
+    if (!this.free(ra) || !this.free(sh)) return;
+    if (ra.wid !== sh.wid) { yield* this.lovingLook(); return; }
+    let hold = true;
+    ra.setTask('love', (function* () { while (hold) { ra.walkVx = 0; yield; } })(), 1.8);
+    sh.setTask('love', (function* () { while (hold) yield; })(), 1.8);
+    // Shadepi geht zu ihr
+    const s = sh.ground;
+    const side = sign(sh.x - ra.x) || 1;
+    const tx = clamp(ra.x + side * 82 * u, s.x1 + 10, s.x2 - 10);
+    for (let e = 0; e < 5 && Math.abs(sh.x - tx) > 6; e += W.dt) { sh.facing = sign(tx - sh.x); sh.walkVx = sh.facing * sh.def.walk * u; yield; }
+    sh.walkVx = 0; sh.facing = -side; ra.facing = side; ra.faceCam = false;
+    sh.talk(pick(['Warte.', 'Halt still.', 'Einen Moment.']), true);
+    yield* this.both(1.1);
+    // Klingenhieb erschafft die Blüte
+    sh.forcePose = 'pose'; sh.poseRow = 0;
+    Sound.play('legacy_aura', 0.35, 1.5);
+    for (let e = 0; e < 0.5; e += W.dt) { if (chance(W.dt * 20)) W.fx.petals(sh.x - side * 30 * u, sh.y - 90 * u, 30, 1); yield; }
+    sh.forcePose = 'attack'; sh.attackDur = 0.5; sh.animT = 0.15;
+    Sound.play('slash', 0.5, 1.4);
+    const bx = sh.x - side * 40 * u, by = sh.y - 60 * u;
+    W.fx.slash(bx + side * 10 * u, by, -side, '#ff8ec0', u, { w: 5, life: 0.35 });
+    W.fx.ring(bx, by, '#ff9ed2', 34 * u, 0.4, 2);
+    W.fx.petals(bx, by, 40, 8);
+    const bloom = W.fx.add({ type: 'blossom', layer: 'top', x: bx, y: by, r: 11 * u, life: 9 });
+    yield* this.both(0.4);
+    sh.forcePose = null;
+    // Blüte schwebt zu Raven
+    const fx0 = bx, fy0 = by, fx1 = ra.x + side * 10 * u, fy1 = ra.y - 66 * u;
+    for (let e = 0; e < 1.2; e += W.dt) {
+      const k = easeInOut(Math.min(1, e / 1.2));
+      bloom.x = lerp(fx0, fx1, k); bloom.y = lerp(fy0, fy1, k) - Math.sin(k * Math.PI) * 26 * u;
+      yield;
+    }
+    sh.talk(pick(['Für dich.', 'Eine Kirschblüte. Wie im Kloster damals.', 'Sie passt zu dir.']), true);
+    yield* this.both(1.5);
+    Sound.play('legacy_transfer', 0.3, 1.6);
+    W.fx.hearts(ra.x, ra.y - 98 * u, 12, 1.4);
+    W.cinema.focus(2.5);
+    ra.talk(pick(['Oh… Hutmann.', 'Du alter Romantiker!', 'Die ist wunderschön…', 'Okay, jetzt werd ich rot.']), true);
+    for (let e = 0; e < 4.5; e += W.dt) {
+      if (chance(W.dt * 5)) W.fx.petals((ra.x + sh.x) / 2, Math.max(10, ra.y - 200 * u), 220 * u, 1);
+      if (chance(W.dt * 1.6)) W.fx.hearts(ra.x, ra.y - 98 * u, 1, 0.6);
+      bloom.x = ra.x + side * 10 * u; bloom.y = ra.y - 66 * u;
+      yield;
+    }
+    sh.faceCam = true;
+    sh.talk(pick(['…', 'Hm.', 'Das bleibt unter uns.']), true);
+    yield* this.both(1.8);
+    sh.faceCam = false;
+    W.fx.petals(bloom.x, bloom.y, 20, 10);
+    bloom.life = Math.min(bloom.life, bloom.t + 0.8);
+    hold = false;
   }
 
   // -------------------------------------------------- Takt

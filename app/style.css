@@ -147,3 +147,28 @@ body { font-family: 'ShadepiPixel', monospace; color: var(--text); }
 .games .chip.add:hover { border-color: var(--cyan); }
 .games .chip.own { border-color: var(--cyan); color: #fff; }
 .games .chip.ign { color: var(--muted); }
+
+/* Ravens Systemdiagnose-Hologramm */
+.holo { position: fixed; width: 250px; padding: 9px 12px 8px; box-sizing: border-box; pointer-events: none;
+  background: linear-gradient(180deg, rgba(98,227,238,0.13), rgba(7,10,18,0.82));
+  border: 1px solid rgba(98,227,238,0.75); box-shadow: 0 0 24px rgba(98,227,238,0.35), inset 0 0 22px rgba(98,227,238,0.12);
+  color: var(--text); animation: holoin 0.45s steps(6) both, holoflicker 3.2s infinite; transform-origin: 0% 100%; }
+.holo::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(98,227,238,0.08) 0 1px, transparent 1px 3px); pointer-events: none; }
+.holo.out { animation: holoout 0.35s steps(5) both; }
+.holo .hh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.holo .hh b { font-family: Silkscreen, monospace; font-size: 9px; font-weight: normal; color: var(--cyan); letter-spacing: 1px; text-shadow: 0 0 6px var(--cyan); }
+.holo .hh span { font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); }
+.holo .hrow { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 6px; margin-top: 4px; }
+.holo .hrow.focus .hl, .holo .hrow.focus .hv { color: var(--amber); }
+.holo .hl { font-family: Silkscreen, monospace; font-size: 8px; color: var(--cyan); }
+.holo .hb { height: 6px; background: rgba(98,227,238,0.12); border: 1px solid rgba(98,227,238,0.35); }
+.holo .hb i { display: block; height: 100%; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); transition: width 0.6s; }
+.holo .hb i.warn { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.holo .hb i.hot { background: var(--red); box-shadow: 0 0 8px var(--red); animation: hot 0.6s infinite; }
+.holo .hv { font-size: 16px; color: #fff; min-width: 84px; text-align: right; }
+.holo .hs { font-family: Silkscreen, monospace; font-size: 6.5px; color: var(--muted); margin: 1px 0 0 40px; white-space: nowrap; overflow: hidden; }
+.holo .hf { font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); margin-top: 6px; text-align: right; }
+@keyframes holoin { 0% { opacity: 0; transform: scaleY(0.05); } 60% { opacity: 1; transform: scaleY(1.04); } 100% { transform: none; } }
+@keyframes holoout { to { opacity: 0; transform: scaleY(0.05); } }
+@keyframes holoflicker { 0%, 92%, 100% { opacity: 1; } 93% { opacity: 0.6; } 95% { opacity: 0.95; } 96% { opacity: 0.7; } }
+@keyframes hot { 50% { opacity: 0.5; } }
