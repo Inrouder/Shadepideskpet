@@ -122,7 +122,10 @@ class DemoWindows {
     bridge.on('windows', (d) => { world.terrain.setWindows(d.windows); world.hidden = settings.hideFullscreen && d.fullscreen; });
     bridge.on('open-menu', (p) => ui.open(p.x, p.y));
     bridge.on('event', (id) => director.startEvent(id));
-    bridge.on('scanner', (s) => { world.scanner = s.active; });
+    bridge.on('scanner', (s) => { world.scanner = s; if (ui && ui.isOpen) ui.updateStatus(); });
+    window.addEventListener('error', (e) => bridge.log && bridge.log(`${e.message} @ ${e.filename}:${e.lineno}`));
+    const origError = console.error;
+    console.error = (...a) => { try { bridge.log && bridge.log(a.map((x) => (x && x.stack) || String(x)).join(' ')); } catch (_) {} origError(...a); };
   } else {
     const taskbar = 48;
     layout({ width: innerWidth, height: innerHeight, workArea: { x: 0, y: 0, w: innerWidth, h: innerHeight - taskbar } });

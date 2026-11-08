@@ -161,14 +161,24 @@ class UI {
     const act = (l, fn, cls = '') => { const b = document.createElement('button'); b.className = 'act ' + cls; b.textContent = l; b.addEventListener('click', fn); actions.appendChild(b); };
     if (this.bridge) {
       act('Ausblenden (Strg+Alt+H)', () => this.bridge.hide());
+      act('Protokollordner', () => this.bridge.openLog && this.bridge.openLog());
       act('Beenden', () => this.bridge.quit(), 'warn');
     }
     act(s.debug ? 'Flächen verbergen' : 'Flächen anzeigen', () => { this.api.set('debug', !s.debug); setTimeout(() => this.render(), 30); });
     c.appendChild(wrap); c.appendChild(actions);
     const st = document.createElement('div'); st.className = 'status';
-    st.textContent = this.bridge ? (W.scanner === false ? 'Fenstererkennung: nur unter Windows verfügbar' : `Fenster erkannt: ${W.terrain.windowSurfaces().length} begehbare Kanten`) : 'Browser-Vorschau mit simulierten Fenstern';
+    st.textContent = this.statusText();
     c.appendChild(st);
   }
+
+  statusText() {
+    const W = this.world, sc = W.scanner;
+    const method = sc ? ({ native: 'Windows-API', powershell: 'PowerShell', none: 'aus' }[sc.method] || sc.method) : '…';
+    if (!this.bridge) return 'Browser-Vorschau mit simulierten Fenstern';
+    if (sc && sc.platform && sc.platform !== 'win32') return 'Fenstererkennung: nur unter Windows verfügbar';
+    return `Fenstererkennung: ${method} · ${sc ? sc.windows : 0} Fenster · ${W.terrain.windowSurfaces().length} begehbare Kanten` + (sc && sc.error ? ` · Fehler: ${sc.error}` : '');
+  }
+  updateStatus() { const el = this.menu && this.menu.querySelector('.status'); if (el) el.textContent = this.statusText(); }
 
   spawnFoe(k) {
     const W = this.world, p = this.spawnPoint();

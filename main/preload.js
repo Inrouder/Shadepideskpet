@@ -15,4 +15,6 @@ contextBridge.exposeInMainWorld('deskpet', {
   autostart: (on) => ipcRenderer.send('autostart', on),
   hide: () => ipcRenderer.send('hide'),
   quit: () => ipcRenderer.send('quit'),
+  log: (msg) => ipcRenderer.send('log', msg),
+  openLog: () => ipcRenderer.send('open-log'),
 });

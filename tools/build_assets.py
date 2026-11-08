@@ -81,8 +81,18 @@ def main(src: Path) -> None:
             foot = solid.crop((0, max(t, b - 24), 192, b)).getbbox() or (l, 0, r, 0)
             anchors.append({"x": (foot[0] + foot[2]) / 2, "y": b, "top": t})
     manifest["combatPoses"] = anchors
-    shutil.copy(src / "assets/sprites/heroes/raven-hand-cast.png", OUT / "heroes" / "raven-hand-cast.png")
-    manifest["handCast"] = json.loads((src / "assets/sprites/heroes/raven-hand-cast.json").read_text())
+    # Raven sitzend / liegend aus den Heiligtum-Posen (an die Spielhelden angepasst).
+    # Maßstab: stehende Raven dort 426 px hoch, im Atlas 117 px -> Faktor in Atlaspixeln.
+    sanct = Image.open(src / "assets/story/sanctuary/poses-game.png").convert("RGBA")
+    rest = {}
+    for name, region, anchor in [("raven-sit", (0, 512, 410, 1024), (246, 300)), ("raven-lie", (472, 512, 1024, 1024), (240, 352))]:
+        cell = sanct.crop(region)
+        alpha = cell.getchannel("A").point(lambda a: 255 if a > 24 else 0)
+        l, t, r, b = alpha.getbbox()
+        l, t, r, b = max(0, l - 4), max(0, t - 4), min(cell.width, r + 4), min(cell.height, b + 4)
+        cell.crop((l, t, r, b)).save(OUT / "heroes" / f"{name}.png", optimize=True)
+        rest[name] = {"anchor": [anchor[0] - l, anchor[1] - t], "scale": 117 / 426}
+    manifest["rest"] = rest
 
     # --- Cyberpunks / Schützen / Bosse: gleiches Atlasformat wie die Helden -------
     npcs = ["punk-1", "punk-2", "punk-3", "punk-4", "shooter-visor", "shooter-violet", "jackal"]

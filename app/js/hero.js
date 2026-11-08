@@ -40,7 +40,8 @@ class Hero extends Entity {
   get partner() { return this.world.heroes.find((h) => h !== this && !h.absent); }
   get dmgMult() { return this.buffs.core > 0 ? 2 : 1; }
   get jumpMax() { return this.def.jump * this.u; }
-  resize() { this.w = 34 * this.u; this.h = 86 * this.u; this.bubbleY = 104 * this.u; }
+  resize() { this.w = 34 * this.u; this.h = 86 * this.u; }
+  get bubbleY() { const p = this.forcePose; return (p === 'sit' ? 74 : p === 'lie' ? 46 : 104) * this.u; }
 
   say(key, arg, force) { return this.talk(line(this.name, key, arg), force); }
   talk(text, force) {
@@ -632,15 +633,18 @@ class Hero extends Entity {
     const pickups = items.filter((i) => i.pickup && (!i.forHero || i.forHero === this.name));
     const toys = items.filter((i) => i.toy);
     const wins = T.windowSurfaces().filter((s) => s.x2 - s.x1 > 110 * this.u);
+    const onWin = this.wid !== 'floor';
+    const raven = this.name === 'raven';
     const choice = weighted([
-      ['wander', 3],
-      ['look', 2],
-      ['climb', W.settings.climbWindows && wins.length ? (this.wid === 'floor' ? 3 : 1) : 0],
-      ['drop', this.wid !== 'floor' ? 1.4 : 0],
+      ['wander', onWin ? 1.5 : 2.5],
+      ['look', onWin ? 2 : 1.5],
+      ['rest', onWin ? 4.5 : (raven ? 0.8 : 0.5)],
+      ['climb', W.settings.climbWindows && wins.length ? (onWin ? 0.8 : 4.5) : 0],
+      ['drop', onWin ? 0.5 : 0],
       ['pickup', pickups.length ? 6 : 0],
       ['toy', toys.length ? 3 : 0],
-      ['nap', 0.25],
-      ['hackWin', this.name === 'raven' && this.wid !== 'floor' ? 0.8 : 0],
+      ['nap', onWin ? 0.7 : 0.25],
+      ['hackWin', raven && onWin ? 0.8 : 0],
     ]);
     switch (choice) {
       case 'wander': this.setTask('wander', this.wander(), 0.5); break;
@@ -650,6 +654,7 @@ class Hero extends Entity {
       case 'pickup': this.setTask('pickup', this.fetch(pickups.sort((a, b) => Math.abs(a.x - this.x) - Math.abs(b.x - this.x))[0]), 1); break;
       case 'toy': this.setTask('toy', this.playWith(pick(toys)), 1); break;
       case 'nap': this.setTask('nap', this.nap(), 0.5); break;
+      case 'rest': this.setTask('rest', raven ? this.sit() : this.guard(), 0.5); break;
       case 'hackWin': this.setTask('hackWin', this.hackWindow(), 0.6); break;
     }
   }
@@ -679,7 +684,42 @@ class Hero extends Entity {
       yield* this.wander();
     }
   }
+  // Raven setzt sich an die Kante (Beine baumeln vor dem Fenster)
+  *sit() {
+    const W = this.world;
+    const s = this.ground; if (!s) return;
+    // ein Stück von der Ecke weg
+    if (this.x < s.x1 + 30 * this.u || this.x > s.x2 - 30 * this.u) yield* this.walkTo(clamp(this.x, s.x1 + 34 * this.u, s.x2 - 34 * this.u));
+    this.forcePose = 'sit'; this.animT = 0;
+    Sound.play('drive_knock', 0.15, 0.8);
+    const dur = rnd(14, 34) / W.calmFactor * (this.wid !== 'floor' ? 1 : 0.6);
+    if (chance(0.35)) {
+      const win = W.terrain.byId.get(this.wid);
+      if (win && win.title && chance(0.5)) this.say('windowTop', win.title.length > 28 ? win.title.slice(0, 26) + '…' : win.title);
+      else this.say('idle');
+    }
+    for (let e = 0; e < dur; e += W.dt) {
+      if (chance(W.dt * 0.08)) this.facing = -this.facing;
+      if (chance(W.dt * 0.03)) this.say('idle');
+      yield;
+    }
+    this.forcePose = null;
+  }
+  // Shadepi hält Wache
+  *guard() {
+    const W = this.world;
+    const dur = rnd(12, 28) / W.calmFactor * (this.wid !== 'floor' ? 1 : 0.6);
+    if (chance(0.3)) this.say('idle');
+    for (let e = 0; e < dur; e += W.dt) {
+      this.faceCam = Math.sin(e * 0.4) > -0.3;
+      if (!this.faceCam && chance(W.dt * 0.3)) this.facing = -this.facing;
+      if (chance(W.dt * 0.02)) this.say('idle');
+      yield;
+    }
+    this.faceCam = false;
+  }
   *nap() {
+    if (this.name === 'raven') { yield* this.napLying(); return; }
     this.faceCam = false; this.forceDir = this.facing < 0 ? DIR.downLeft : DIR.downRight;
     if (chance(0.5)) this.say('sleepy');
     const W = this.world;
@@ -691,6 +731,22 @@ class Hero extends Entity {
       if (!W.settings.paused && e > 4 && chance(W.dt * 0.2)) break;
     }
     this.squash = 1; this.forceDir = null;
+  }
+  *napLying() {
+    const W = this.world;
+    const s = this.ground; if (!s) return;
+    if (this.x < s.x1 + 50 * this.u || this.x > s.x2 - 50 * this.u) yield* this.walkTo(clamp(this.x, s.x1 + 55 * this.u, s.x2 - 55 * this.u));
+    if (chance(0.5)) this.say('sleepy');
+    this.forcePose = 'lie';
+    for (let e = 0, z = 0; e < rnd(10, 22); e += W.dt) {
+      z -= W.dt;
+      if (z <= 0) { z = 1.3; W.fx.add({ type: 'text', layer: 'top', x: this.x - this.facing * 30 * this.u, y: this.y - 40 * this.u, vx: 14, vy: -26, g: 0, life: 1.8, text: 'z', color: COLORS.muted, size: 16, stay: true }); }
+      yield;
+      if (!W.settings.paused && e > 6 && chance(W.dt * 0.1)) break;
+    }
+    this.forcePose = 'sit';
+    yield* this.wait(0.8);
+    this.forcePose = null;
   }
   *fetch(item) {
     if (!item || item.dead) return;
@@ -1183,8 +1239,21 @@ class Hero extends Entity {
         drawPose(ctx, this.poseRow, fd ?? side, x, y, S, opts);
         break;
       case 'cast':
-        if (this.name === 'raven') drawCast(ctx, this.castRow, fd ?? side, x, y, S, opts);
-        else drawPose(ctx, 0, side, x, y, S, opts);
+        if (this.name === 'raven') {
+          const dir = fd ?? side;
+          drawCast(ctx, this.castRow, dir, x, y, S, opts);
+          const p = castPalm(this.castRow, dir, x, y, S);
+          const r = (this.castRow === 1 ? 7 : this.castRow === 0 ? 3 + Math.min(4, this.animT * 10) : 3) * this.u;
+          ctx.save(); ctx.globalAlpha = (o.alpha ?? 1) * (0.7 + 0.3 * Math.sin(this.world.time * 30));
+          ctx.shadowColor = COLORS.cyan; ctx.shadowBlur = 16; ctx.fillStyle = COLORS.cyanHot;
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        } else drawPose(ctx, 0, side, x, y, S, opts);
+        break;
+      case 'sit':
+        if (!drawRest(ctx, 'raven-sit', x, y, S, { ...opts, flip: f < 0 })) drawAtlas(ctx, img, GROUP.idle, DIR.down, 0, x, y, S, opts);
+        break;
+      case 'lie':
+        if (!drawRest(ctx, 'raven-lie', x, y, S, { ...opts, flip: f < 0 })) drawAtlas(ctx, img, GROUP.idle, DIR.down, 0, x, y, S, opts);
         break;
       default:
         drawAtlas(ctx, img, GROUP.idle, side, 0, x, y, S, opts);

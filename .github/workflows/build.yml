@@ -27,6 +27,9 @@ jobs:
       - name: Syntaxprüfung
         run: npm run check
 
+      - name: Fensterscanner testen (Windows-API)
+        run: node main/winscan-native.js
+
       - name: Fensterscanner testen (PowerShell)
         shell: pwsh
         run: |

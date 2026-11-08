@@ -36,7 +36,7 @@ class Terrain {
     if (!this.enabled) return false;
     if (w.max) return false;
     if (w.w < 160 || w.h < 90) return false;
-    if (w.y < 70 || w.y > this.floorY - 70) return false;
+    if (w.y < 24 || w.y > this.floorY - 70) return false;
     if (w.x > this.W - 60 || w.x + w.w < 60) return false;
     return true;
   }

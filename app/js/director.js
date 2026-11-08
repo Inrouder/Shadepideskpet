@@ -184,7 +184,7 @@ class Director {
     if (chance(0.5)) W.bubbles.sayAt(W.terrain.W / 2, W.terrain.H * 0.3 + 120, 'ARToS', COLORS.amber, pick(LINES.artos.alarm), 2);
     setTimeout(spawn, boss ? 1200 : 700);
     for (const h of W.presentHeroes()) {
-      if (['training', 'hatch', 'wander', 'look', 'nap', 'climb', 'toy', 'pickup', 'hackWin', 'drop', 'spar', 'chat', 'ball'].includes(h.taskName) || !h.task) {
+      if (['training', 'hatch', 'wander', 'look', 'nap', 'rest', 'climb', 'toy', 'pickup', 'hackWin', 'drop', 'spar', 'chat', 'ball'].includes(h.taskName) || !h.task) {
         setTimeout(() => { if (!h.ko && !h.absent) { h.setTask('fight', h.fight(), 3); h.say(kind === 'drones' ? 'drones' : kind === 'viruses' ? 'viruses' : kind === 'gang' ? 'gang' : kind === 'bots' ? 'bots' : 'boss', null, true); } }, rnd(300, 900));
       }
     }

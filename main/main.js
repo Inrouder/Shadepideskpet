@@ -30,6 +30,10 @@ let settings = { ...DEFAULTS };
 let ignoring = true;
 let lastWindows = null;
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+let lastLoggedError = '';
+function log(msg) {
+  try { fs.appendFileSync(path.join(app.getPath('userData'), 'deskpet.log'), `${new Date().toISOString()} ${msg}\n`); } catch (_) {}
+}
 
 function loadSettings() {
   try { settings = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch (_) { settings = { ...DEFAULTS }; }
@@ -183,8 +187,13 @@ if (!app.requestSingleInstanceLock()) {
     globalShortcut.register('CommandOrControl+Alt+H', toggleVisible);
 
     scanner = new WindowScanner((raw) => { lastWindows = raw; sendWindows(raw); });
-    const scanning = scanner.start();
-    setTimeout(() => send('scanner', { active: scanning }), 1500);
+    scanner.start();
+    setInterval(() => {
+      const st = scanner.status();
+      st.platform = process.platform;
+      if (st.error && st.error !== lastLoggedError) { lastLoggedError = st.error; log('Fensterscanner: ' + st.error); }
+      send('scanner', st);
+    }, 2000);
 
     screen.on('display-metrics-changed', placeOverlay);
     screen.on('display-added', () => { placeOverlay(); buildTray(); });
@@ -199,6 +208,8 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('set-setting', (_e, { key, value }) => { if (key in DEFAULTS) setSetting(key, value); });
   ipcMain.on('get-cursor', (e) => { e.returnValue = cursorInOverlay(); });
   ipcMain.on('quit', () => app.quit());
+  ipcMain.on('log', (_e, msg) => log('Renderer: ' + String(msg).slice(0, 2000)));
+  ipcMain.on('open-log', () => shell.openPath(path.join(app.getPath('userData'))));
   ipcMain.on('hide', () => toggleVisible());
   ipcMain.on('autostart', (_e, on) => setAutostart(on));
 

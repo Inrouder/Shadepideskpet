@@ -13,7 +13,8 @@
     "assets": "python tools/build_assets.py ../ShadepiRPG",
     "check": "node tools/check.js",
     "dist": "electron-builder --win portable nsis --x64",
-    "dist:dir": "electron-builder --win dir --x64"
+    "dist:dir": "electron-builder --win dir --x64",
+    "scan": "node main/winscan-native.js"
   },
   "devDependencies": {
     "electron": "^45.2.0",
@@ -47,6 +48,10 @@
     },
     "portable": {
       "artifactName": "Shadepi-Deskpet-${version}-portable.exe"
-    }
+    },
+    "asar": false
+  },
+  "dependencies": {
+    "koffi": "^3.3.7"
   }
 }

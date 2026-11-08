@@ -4,7 +4,7 @@
 const MANIFEST = window.PET_MANIFEST || {};
 const IMG = {};
 const IMAGE_FILES = {
-  shadepi: 'heroes/shadepi.png', raven: 'heroes/raven.png', poses: 'heroes/combat-poses.png', handcast: 'heroes/raven-hand-cast.png',
+  shadepi: 'heroes/shadepi.png', raven: 'heroes/raven.png', poses: 'heroes/combat-poses.png', 'raven-sit': 'heroes/raven-sit.png', 'raven-lie': 'heroes/raven-lie.png',
   'punk-1': 'enemies/punk-1.png', 'punk-2': 'enemies/punk-2.png', 'punk-3': 'enemies/punk-3.png', 'punk-4': 'enemies/punk-4.png',
   'shooter-visor': 'enemies/shooter-visor.png', 'shooter-violet': 'enemies/shooter-violet.png', jackal: 'enemies/jackal.png',
   bot: 'enemies/bot.png', virus: 'enemies/virus.png', ice: 'enemies/ice.png', drone: 'enemies/drone.png',
@@ -132,18 +132,25 @@ function drawPose(ctx, row, dir, x, y, scale, opts) {
   drawRegion(ctx, IMG.poses, dir * 192, row * 256, 192, 256, a.x, a.y, x, y, scale * 0.5, opts);
 }
 
-// Ravens Handzauber: Zeile 0 Aufbau, 1 Auslösen, 2 Nachhall; je 8 Richtungen. scale ist der Heldenfaktor.
+// Ravens Zauber/Hack: dieselben Atlasbilder wie ihr Angriff (keine fremde Figurengrafik).
+// Zeile 0 Aufbau, 1 Auslösen, 2 Nachhall -> Angriffsbild 1, 3, 6.
+const CAST_FRAMES = [1, 3, 6];
+// Mündung/Hand im 128×160-Angriffsbild je Richtung (aus player.gd), Fußpunkt (64,152)
+const MUZZLE_POINTS = [[64, 71], [24, 57], [105, 58], [62, 36], [26, 46], [100, 46], [34, 65], [99, 64]];
 function drawCast(ctx, row, dir, x, y, scale, opts) {
-  const p = ((MANIFEST.handCast || [])[row] || [])[dir];
-  if (!p) return;
-  const [rx, ry, rw, rh] = p.region;
-  drawRegion(ctx, IMG.handcast, rx, ry, rw, rh, p.anchor[0], p.anchor[1], x, y, scale * 2 * p.scale, opts);
+  drawAtlas(ctx, IMG.raven, GROUP.attack, dir, CAST_FRAMES[row] || 3, x, y, scale, opts);
 }
-function castPalm(row, dir, x, y, scale, flip) {
-  const p = ((MANIFEST.handCast || [])[row] || [])[dir];
-  if (!p) return { x, y: y - 60 * scale };
-  const s = scale * 2 * p.scale;
-  return { x: x + (p.palm[0] - p.anchor[0]) * s * (flip ? -1 : 1), y: y + (p.palm[1] - p.anchor[1]) * s };
+function castPalm(row, dir, x, y, scale) {
+  const p = MUZZLE_POINTS[dir] || MUZZLE_POINTS[0];
+  return { x: x + (p[0] - 64) * scale, y: y + (p[1] - 152) * scale };
+}
+
+// Ruheposen (Raven sitzend/liegend), Anker = Sitz- bzw. Auflagepunkt
+function drawRest(ctx, name, x, y, scale, opts) {
+  const img = IMG[name], r = (MANIFEST.rest || {})[name];
+  if (!img || !r) return false;
+  drawRegion(ctx, img, 0, 0, img.width, img.height, r.anchor[0], r.anchor[1], x, y, scale * r.scale, opts);
+  return true;
 }
 
 // Kampfbot aus der Erinnerung „Angriff": Regionen/Anker aus actors.json.
