@@ -196,12 +196,12 @@ class Hero extends Entity {
     if (Math.abs(this.x - outX) > 12 * u || !this.ground) return false;
     this.facing = -side;
     this.say('climb');
-    const reach = this.y - 70 * u;
+    const reach = this.y - 100 * u;
     let startY = this.y;
     if (wall.y2 < reach) {
       // Wand beginnt zu hoch – hochspringen oder Haken
       const gap = reach - wall.y2;
-      const grabY = wall.y2 + 70 * u + 6;
+      const grabY = wall.y2 + 100 * u;
       if (gap > this.jumpMax) {
         yield* this.leapTo(wall.x + side * 2 * u, grabY);
         this.leaveGround(); this.gravity = 0;
@@ -223,7 +223,7 @@ class Hero extends Entity {
     const speed = 78 * u;
     let pause = rnd(0.8, 1.6);
     try {
-      while (relY > 2) {
+      while (relY > 92 * u) {
         const w = T.byId.get(wall.wid);
         const wallNow = T.wallsOf(wall.wid).find((x) => x.side === side);
         if (!w || !wallNow || !this.climbing) { this.climbing = null; this.gravity = 1; this.forcePose = null; return false; }
@@ -247,14 +247,27 @@ class Hero extends Entity {
       if (tops.length) { const q = tops.sort((a, b) => Math.abs((a.x1 + a.x2) / 2 - x1) - Math.abs((b.x1 + b.x2) / 2 - x1))[0]; x1 = clamp(x1, q.x1 + 10, q.x2 - 10); }
       const x0 = this.x, y0 = this.y;
       let e = 0;
-      const hop = clamp(Math.abs(x1 - x0) / (300 * u), 0.28, 0.7);
-      while (e < hop) { e += W.dt; const k = easeOut(Math.min(1, e / hop)); this.x = lerp(x0, x1, k); this.y = lerp(y0, w.y, k) - Math.sin(k * Math.PI) * 20 * u; yield; }
+      // Hochziehen: Arme oben, Körper hebt sich über die Kante
+      this.forcePose = 'mantle';
+      Sound.play('drive_knock', 0.2, 0.7);
+      const lift = 0.5;
+      while (e < lift) {
+        e += W.dt; const k = easeInOut(Math.min(1, e / lift));
+        const wn = T.byId.get(wall.wid) || w;
+        this.x = (side < 0 ? wn.x : wn.x + wn.w) + side * 4 * u;
+        this.y = lerp(y0 - w.y, 6 * u, k) + wn.y;
+        yield;
+      }
+      this.forcePose = 'crouch'; e = 0;
+      const y2 = this.y;
+      const hop = clamp(Math.abs(x1 - x0) / (300 * u), 0.22, 0.6);
+      while (e < hop) { e += W.dt; const k = easeOut(Math.min(1, e / hop)); this.x = lerp(x0, x1, k); this.y = lerp(y2, w.y, k) - Math.sin(k * Math.PI) * 14 * u; yield; }
       const s = T.surfaceOf(wall.wid, x1, 4);
       this.gravity = 1;
       if (s) { this.land(s, 200); this.facing = -side; return true; }
       return false;
     } finally {
-      this.climbing = null; this.gravity = 1; if (this.forcePose === 'climb' || this.forcePose === 'jump') this.forcePose = null;
+      this.climbing = null; this.gravity = 1; if (['climb', 'jump', 'mantle', 'crouch'].includes(this.forcePose)) this.forcePose = null;
     }
   }
 
@@ -643,7 +656,7 @@ class Hero extends Entity {
       ['drop', onWin ? 0.5 : 0],
       ['pickup', pickups.length ? 6 : 0],
       ['toy', toys.length ? 3 : 0],
-      ['nap', onWin ? 0.7 : 0.25],
+      ['nap', (onWin ? 0.7 : 0.25) * (isNight() ? 4 : 1)],
       ['hackWin', raven && onWin ? 0.8 : 0],
     ]);
     switch (choice) {
@@ -964,6 +977,72 @@ class Hero extends Entity {
     }
   }
 
+  // Zu oft angeklickt ------------------------------------------
+  *annoyed() {
+    const W = this.world, u = this.u, T = W.terrain;
+    this.faceCam = true;
+    if (this.name === 'shadepi') {
+      this.talk(pick(['Genug.', 'Ich sagte: nicht stupsen.', 'Schatten lassen sich nicht anfassen.']), true);
+      yield* this.wait(1.1);
+      W.fx.smokePuff(this.x, this.y - 30 * u, 0.7 * u, 0.9);
+      Sound.play('slash', 0.4, 0.6);
+      const s = pick(T.allSurfaces().filter((q) => q.x2 - q.x1 > 80));
+      this.alpha = 0;
+      yield* this.wait(0.6);
+      this.x = clamp(rnd(s.x1 + 30, s.x2 - 30), 30, T.W - 30); this.y = s.y; this.land(s, 0);
+      W.fx.smokePuff(this.x, this.y - 30 * u, 0.7 * u, 0.9);
+      this.alpha = 1;
+      yield* this.wait(0.4);
+      this.talk('Hier bin ich sicher.', true);
+    } else {
+      this.talk(pick(['Okay, jetzt reicht’s! Ich hack deinen Cursor!', 'Klick-Spam erkannt. Gegenmaßnahme!']), true);
+      this.forcePose = 'cast'; this.forceDir = DIR.down; this.castRow = 0;
+      yield* this.wait(0.6);
+      this.castRow = 1;
+      Sound.play('hack', 0.6);
+      for (let e = 0; e < 3; e += W.dt) {
+        const m = W.mouse;
+        if (chance(W.dt * 8)) {
+          const p = castPalm(1, DIR.down, this.x, this.y, this.S);
+          W.fx.lightning(p.x, p.y, m.x, m.y, COLORS.cyan, 0.12, 1.5);
+        }
+        W.fx.add({ type: 'ring', x: m.x, y: m.y, life: 0.12, r0: 18, r1: 22, color: COLORS.cyan, w: 2 });
+        yield;
+      }
+      this.forcePose = null; this.forceDir = null;
+      this.talk('So. Cursor gesichert. Benimm dich.', true);
+    }
+    yield* this.wait(1.5);
+    this.faceCam = false;
+  }
+
+  // Erinnerung überbringen ---------------------------------------
+  *remind(rem, R) {
+    const W = this.world, u = this.u;
+    yield* this.waitGround(2);
+    if (W.mouse.active && this.ground) {
+      const s = this.ground;
+      const tx = clamp(W.mouse.x + (this.name === 'raven' ? -70 : 70) * u, s.x1 + 20, s.x2 - 20);
+      yield* this.walkTo(tx, true, 10, 3);
+    }
+    this.faceCam = true;
+    if (R.deliverers && R.deliverers[1] === this) yield* this.wait(2.4);
+    if (R.active === rem) this.talk(rem.line(this), true);
+    let t = 0;
+    while (R.active === rem) {
+      t += W.dt;
+      if (this.name === 'raven') {
+        this.forcePose = 'cast'; this.forceDir = DIR.down; this.castRow = Math.floor(t * 1.5) % 2;
+        if (chance(W.dt * 14)) { const p = castPalm(1, DIR.down, this.x, this.y, this.S); W.fx.add({ type: 'pixel', x: p.x + rnd(-14, 14), y: p.y + rnd(-14, 6), vx: 0, vy: -rnd(20, 60), g: 0, life: 0.6, color: COLORS.cyan, size: 2 }); }
+      } else {
+        this.forcePose = null;
+        if (this.ground && t % 2.4 < W.dt) { this.vy = -430 * u; this.leaveGround(); W.fx.dust(this.x, this.y, 3, u); }
+      }
+      yield;
+    }
+    this.forcePose = null; this.forceDir = null; this.faceCam = false;
+  }
+
   // Auftritt / Abgang --------------------------------------------
   *arrive(style) {
     const W = this.world, u = this.u, T = W.terrain;
@@ -1071,6 +1150,16 @@ class Hero extends Entity {
     }
     if (Math.abs(mvx) > 60) this.facing = -sign(mvx);
   }
+  onWindowJolt(dx, dy) {
+    if (this.dragged || this.ko || (this.task && this.taskPrio >= 4)) return false;
+    this.cancelTask();
+    this.leaveGround();
+    this.vx = clamp(-dx * 9, -900, 900); this.vy = -Math.max(260, Math.abs(dy) * 6);
+    this.afterThrow = true;
+    this.say('jolt', null, true);
+    Sound.play('calib_error', 0.35, 1.2);
+    return true;
+  }
   onRelease(vx, vy) {
     this.release(vx, vy);
     this.afterThrow = true;
@@ -1104,7 +1193,11 @@ class Hero extends Entity {
     this.faceCam = false;
   }
   poke() {
-    if (this.dragged || this.ko) return;
+    if (this.dragged || this.ko || this.taskName === 'annoyed') return;
+    const now = this.world.time;
+    this.pokes = (this.pokes || []).filter((t) => now - t < 4);
+    this.pokes.push(now);
+    if (this.pokes.length >= 5 && (!this.task || this.taskPrio < 3)) { this.pokes = []; this.setTask('annoyed', this.annoyed(), 3); return; }
     this.faceCam = true;
     this.say('poke', null, true);
     this.flash = 0.06;
@@ -1130,6 +1223,8 @@ class Hero extends Entity {
       this.physics(dt); this.animT += dt;
       return;
     }
+    // Gegner da? Dann Freizeit unterbrechen (Training, Sitzen, Luke …)
+    if (this.task && this.taskPrio < 3 && !W.settings.paused && this.enemyList().length) this.setTask('fight', this.fight(), 3);
     if (this.task) this.runTask();
     else if (!this.dragged) this.think();
     // Maus in der Nähe → hinschauen
@@ -1207,9 +1302,13 @@ class Hero extends Entity {
         drawAtlas(ctx, img, GROUP.walk, fd ?? side, Math.floor(this.animT * fps) % 8, x, y, S, opts);
         break;
       }
-      case 'climb':
-        drawAtlas(ctx, img, GROUP.walk, DIR.up, Math.floor(this.climbDist / (10 * u)) % 8, x + Math.sin(this.climbDist * 0.15) * 2, y, S, opts);
+      case 'climb': case 'mantle': {
+        const strip = IMG[this.name + '-climb'];
+        const fr = pose === 'mantle' ? 0 : Math.floor(this.climbDist / (7 * u)) % 8;
+        if (strip) drawRegion(ctx, strip, fr * 128, 0, 128, 160, 64, 152, x, y, S, opts);
+        else drawAtlas(ctx, img, GROUP.walk, DIR.up, fr, x, y, S, opts);
         break;
+      }
       case 'attack': {
         const fr = Math.min(7, Math.floor((this.animT / this.attackDur) * 8));
         drawAtlas(ctx, img, GROUP.attack, fd ?? side, fr, x, y, S, opts);

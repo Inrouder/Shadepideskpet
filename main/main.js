@@ -2,10 +2,12 @@
 // Ein randloses, transparentes Overlay liegt über dem ganzen Bildschirm.
 // Mausklicks gehen durch, außer der Zeiger steht über einer Figur, einem
 // Gegenstand oder dem Menü (der Renderer meldet das per IPC).
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { WindowScanner, toOverlaySpace } = require('./windows');
+const { Updater } = require('./updater');
+let updater = null;
 
 const DEFAULTS = {
   mode: 'wechselnd',        // shadepi | raven | beide | wechselnd
@@ -21,6 +23,10 @@ const DEFAULTS = {
   display: 0,
   dock: true,
   paused: false,
+  reminders: [],
+  chime: false,
+  breakEvery: 0,
+  drinkEvery: 0,
 };
 
 let overlay = null;
@@ -55,6 +61,7 @@ function layoutPayload() {
     workArea: { x: d.workArea.x - d.bounds.x, y: d.workArea.y - d.bounds.y, w: d.workArea.width, h: d.workArea.height },
     scale: d.scaleFactor,
     displays: screen.getAllDisplays().length,
+    version: app.getVersion(),
   };
 }
 
@@ -153,6 +160,9 @@ function buildTray() {
     check('Ruhemodus', 'paused'),
     { label: 'Mit Windows starten', type: 'checkbox', checked: autostartEnabled(), click: (i) => setAutostart(i.checked) },
     { label: 'Ausblenden / Einblenden  (Strg+Alt+H)', click: toggleVisible },
+    updater && updater.state.state === 'ready'
+      ? { label: `Update ${updater.state.version} jetzt installieren`, click: () => updater.install() }
+      : { label: `Nach Updates suchen (v${app.getVersion()})`, click: () => updater && updater.check(true) },
     { label: 'Projektseite', click: () => shell.openExternal('https://github.com/Inrouder/Shadepideskpet') },
     { type: 'separator' },
     { label: 'Beenden', click: () => app.quit() },
@@ -186,6 +196,9 @@ if (!app.requestSingleInstanceLock()) {
     globalShortcut.register('CommandOrControl+Alt+P', () => send('open-menu', cursorInOverlay()));
     globalShortcut.register('CommandOrControl+Alt+H', toggleVisible);
 
+    updater = new Updater((ch, st) => { send(ch, st); if (st.state === 'ready' || st.state === 'none') buildTray(); }, log);
+    updater.start();
+
     scanner = new WindowScanner((raw) => { lastWindows = raw; sendWindows(raw); });
     scanner.start();
     setInterval(() => {
@@ -216,6 +229,16 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('set-setting', (_e, { key, value }) => { if (key in DEFAULTS) setSetting(key, value); });
   ipcMain.on('get-cursor', (e) => { e.returnValue = cursorInOverlay(); });
   ipcMain.on('quit', () => app.quit());
+  ipcMain.on('update-check', () => updater && updater.check(true));
+  ipcMain.on('update-install', () => updater && updater.install());
+  ipcMain.on('set-focusable', (_e, on) => {
+    if (!overlay) return;
+    overlay.setFocusable(!!on);
+    if (on) { overlay.setIgnoreMouseEvents(false); ignoring = false; overlay.focus(); }
+  });
+  ipcMain.on('notify', (_e, { title, body }) => {
+    try { if (Notification.isSupported()) new Notification({ title: `Shadepi Deskpet · ${title}`, body, icon: path.join(__dirname, '..', 'app', 'assets', 'ui', 'icon.png'), silent: true }).show(); } catch (_) {}
+  });
   ipcMain.on('log', (_e, msg) => log('Renderer: ' + String(msg).slice(0, 2000)));
   ipcMain.on('open-log', () => shell.openPath(path.join(app.getPath('userData'))));
   ipcMain.on('hide', () => toggleVisible());

@@ -15,7 +15,7 @@ Ein Desktop-Maskottchen im Stil von **[ShadepiRPG](https://github.com/Inrouder/S
 ## Was passiert auf dem Bildschirm?
 
 - **Umschaltbar:** nur Shadepi, nur Raven, beide zusammen oder **abwechselnd** mit Schichtwechsel. In allen Einzelmodi kommt der Partner manchmal **zu Besuch** oder springt **im Kampf zur Hilfe** („Brauchst du Hilfe, Hutmann?“).
-- **Fenster beklettern:** Die Figuren erkennen unter Windows alle sichtbaren Fenster, klettern an den Seitenkanten hoch (Raven nutzt bei zu hohen Kanten ihren Greifhaken, Shadepi den Schattensprung), springen von Fenster zu Fenster und lassen sich wieder fallen. Verdeckte Teile werden berücksichtigt, die Ecke mit Minimieren/Schließen bleibt frei.
+- **Fenster beklettern:** Mit eigener Kletteranimation (Arme greifen abwechselnd, Hochziehen an der Kante). Raven setzt sich gern an die Fensterkante oder legt sich hin, Shadepi hält Wache. Die Figuren erkennen unter Windows alle sichtbaren Fenster, klettern an den Seitenkanten hoch (Raven nutzt bei zu hohen Kanten ihren Greifhaken, Shadepi den Schattensprung), springen von Fenster zu Fenster und lassen sich wieder fallen. Verdeckte Teile werden berücksichtigt, die Ecke mit Minimieren/Schließen bleibt frei.
 - **Kämpfe:** Drohnenpatrouillen und -schwärme, Virusausbrüche aus einem Glitch-Riss, Cyberpunk-Gangs und Schützen, Kampfbots im Luftabwurf, **Boss ICE-Wächter** und **Boss Chrome Jackal**. Manchmal kämpft eine Figur allein, manchmal beide zusammen.
   - **Shadepi:** Katana-Kombos, Tritt, aufgeladener Schlag, Sprungschlag gegen Flieger, Wurfsterne und der Spezialangriff **Schattenschnitt** (Zeitlupe + Nachbilder).
   - **Raven:** Impulspistole (auch aus der Hocke), Kettenblitz gegen Viren, **Drohnen-Hack** (die Drohne kämpft dann für sie), Störsignal gegen schwere Gegner.
@@ -23,13 +23,30 @@ Ein Desktop-Maskottchen im Stil von **[ShadepiRPG](https://github.com/Inrouder/S
   - Werden die Helden besiegt, gehen sie nur kurz in die Knie und regenerieren (Heiligtum bzw. Neustart).
 - **Eigenleben:** Shadepi **trainiert** selbstständig, schlägt dabei manchmal versehentlich ein **Loch in den Bildschirm** und flickt es danach mit **Klebeband**. Raven öffnet ab und zu eine **Wartungsluke** im Bildschirm, scannt, löst die Schrauben und **verkabelt die Leitungen neu**, ARToS meldet „Signal 100 Prozent“. Dazu kommen Sparring (Shadepi pariert Ravens Schüsse), Gespräche zwischen den beiden, Ballspiel, Nickerchen und Kommentare zu deinen Fenstertiteln.
 
+## Wecker, Timer und Erinnerungen
+
+Im Menü unter **Wecker**:
+
+- **Timer** mit Schnellwahl (1–60 Min, z. B. 25 Min für Pomodoro) oder frei einstellbar, optional mit Text („Pizza aus dem Ofen holen“).
+- **Wecker** zu einer Uhrzeit – einmalig, täglich oder Mo–Fr.
+- **Automatisch:** Pausen-Erinnerung (30–90 Min), Trink-Erinnerung und Stundenansage.
+
+Wenn es so weit ist, kommen Shadepi und/oder Raven zu deinem Mauszeiger gelaufen. Raven projiziert ein Hologramm, Shadepi springt auf und ab, dazu Letterbox, Titelkarte und Alarmton. Eine Karte über den beiden bietet **Erledigt**, **+5 Min** und **+10 Min**. Ignorierst du sie, werden die beiden ungeduldig. Zusätzlich erscheint eine Windows-Benachrichtigung. Der nächste Countdown steht klein an der Seitenleiste.
+
+## Updates
+
+Die installierte Version (Setup) sucht beim Start und alle 6 Stunden nach einer neuen Version, lädt sie im Hintergrund und installiert sie beim nächsten Neustart. Raven meldet das Update und zeigt den Download-Fortschritt. Die portable EXE meldet neue Versionen und öffnet den Download. Manuell: Menü → System → „Nach Updates suchen“ oder im Tray-Menü.
+
+Neue Versionen entstehen automatisch: Wird `version` in `package.json` erhöht und nach `main` gepusht, baut der Workflow das Programm und veröffentlicht es als GitHub-Release.
+
 ## Bedienung
 
 | Aktion | Wirkung |
 | --- | --- |
 | Figur **mit der Maus packen** | Sie baumelt am Kragen und **schimpft**. Wer schüttelt, bekommt extra Ärger (und eine schwindelige Figur). |
 | Figur **loslassen/werfen** | Sie fliegt, trudelt, landet und beschwert sich. Geworfene Figuren hauen Gegner um. |
-| Figur **anklicken** | Sie reagiert und hüpft kurz. |
+| Figur **anklicken** | Sie reagiert und hüpft kurz. Wer zu oft klickt, erlebt eine Überraschung. |
+| Fenster mit einer Figur darauf **ruckartig verschieben** | Sie fällt herunter und beschwert sich. |
 | Gegner anklicken / packen / werfen | Du kannst mithelfen: Gegner gegeneinander werfen funktioniert. |
 | Spielzeug anklicken | wird weggekickt; Power-ups lässt du von der nächsten Figur einsammeln. |
 | **Rechtsklick auf eine Figur**, Klick auf das **Tray-Symbol**, die **Seitenleiste** rechts oder **Strg+Alt+P** | Menü öffnen. |
@@ -78,5 +95,7 @@ Alles unter `app/assets/` stammt aus **ShadepiRPG** und wird dort nicht verände
 ```bash
 python tools/build_assets.py ../ShadepiRPG
 ```
+
+Die Kletterbilder entstehen anschließend mit `python tools/build_climb.py` aus der Rückansicht der Heldenatlanten (Arme und Beine werden ausgeschnitten und bewegt, nichts neu gezeichnet).
 
 Das Skript liest nur, schneidet Requisiten und FX aus den Atlanten, misst die Fußpunkte der Kampfposen und schreibt `app/assets/manifest.js`. Die Sprechblasen, Löcher, Klebeband, Wartungsluke, Projektile und kleinen Power-up-Symbole werden zur Laufzeit gezeichnet.

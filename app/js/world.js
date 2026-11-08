@@ -26,7 +26,7 @@ class World {
   }
 
   get u() { return this.settings.size / 0.72; }
-  get calmFactor() { return { ruhig: 1.8, normal: 1, chaos: 0.6 }[this.settings.activity] || 1; }
+  get calmFactor() { return ({ ruhig: 1.8, normal: 1, chaos: 0.6 }[this.settings.activity] || 1) * (isNight() ? 1.6 : 1); }
   hasEnemies() { return this.enemies.some((e) => !e.dead && e.team === 'enemy'); }
   hero(name) { return this.heroes.find((h) => h.name === name); }
   presentHeroes() { return this.heroes.filter((h) => !h.absent); }

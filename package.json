@@ -1,7 +1,7 @@
 {
   "name": "shadepi-deskpet",
   "productName": "Shadepi Deskpet",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Desktop-Maskottchen im Stil von ShadepiRPG: Shadepi und Raven laufen über den Bildschirm, klettern Fenster hoch und kämpfen gegen Drohnen, Viren und Cyberpunks.",
   "main": "main/main.js",
   "author": "Inrouder",
@@ -49,9 +49,18 @@
     "portable": {
       "artifactName": "Shadepi-Deskpet-${version}-portable.exe"
     },
-    "asar": false
+    "asar": false,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Inrouder",
+        "repo": "Shadepideskpet",
+        "releaseType": "release"
+      }
+    ]
   },
   "dependencies": {
+    "electron-updater": "^6.8.11",
     "koffi": "^3.3.7"
   }
 }

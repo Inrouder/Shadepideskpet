@@ -6,6 +6,7 @@ const MENU_TABS = [
   { id: 'gear', label: 'AUSRÜSTUNG' },
   { id: 'foes', label: 'GEGNER' },
   { id: 'scenes', label: 'SZENEN' },
+  { id: 'alarm', label: 'WECKER' },
   { id: 'cast', label: 'FIGUREN' },
   { id: 'system', label: 'SYSTEM' },
 ];
@@ -88,6 +89,7 @@ class UI {
     m.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === this.tab));
     const c = m.querySelector('.content');
     c.innerHTML = '';
+    clearInterval(this.remTick);
     const grid = document.createElement('div'); grid.className = 'grid';
     const card = (label, sub, icon, onClick, extraClass = '') => {
       const b = document.createElement('button');
@@ -119,6 +121,9 @@ class UI {
       card('Schichtwechsel', 'nur bei „Abwechselnd“', null, () => D.swapMain(), 'text');
     } else if (this.tab === 'system') {
       this.renderSystem(c);
+      return;
+    } else if (this.tab === 'alarm') {
+      this.renderAlarm(c);
       return;
     }
     c.appendChild(grid);
@@ -161,6 +166,7 @@ class UI {
     const act = (l, fn, cls = '') => { const b = document.createElement('button'); b.className = 'act ' + cls; b.textContent = l; b.addEventListener('click', fn); actions.appendChild(b); };
     if (this.bridge) {
       act('Ausblenden (Strg+Alt+H)', () => this.bridge.hide());
+      act(`Nach Updates suchen (v${W.version || '?'})`, () => W.updates.check());
       act('Protokollordner', () => this.bridge.openLog && this.bridge.openLog());
       act('Beenden', () => this.bridge.quit(), 'warn');
     }
@@ -169,6 +175,88 @@ class UI {
     const st = document.createElement('div'); st.className = 'status';
     st.textContent = this.statusText();
     c.appendChild(st);
+  }
+
+  renderAlarm(c) {
+    const W = this.world, R = W.reminders, s = W.settings;
+    const now = new Date();
+    if (!this.draft) {
+      const d = new Date(now.getTime() + 60 * 60000);
+      this.draft = { min: 10, hh: d.getHours(), mm: Math.ceil(d.getMinutes() / 5) * 5 % 60, repeat: 'einmalig', text: '' };
+    }
+    const D = this.draft;
+    const pad = (n) => String(n).padStart(2, '0');
+    const el = (html, cls) => { const d = document.createElement('div'); if (cls) d.className = cls; d.innerHTML = html; return d; };
+    const wrap = el('', 'alarm');
+
+    // Text
+    const txt = el(`<input class="rem-input" type="text" maxlength="60" placeholder="Woran sollen sie dich erinnern? (optional)">`, 'row');
+    const inp = txt.querySelector('input');
+    inp.value = D.text;
+    inp.addEventListener('input', () => (D.text = inp.value));
+    inp.addEventListener('focus', () => this.bridge && this.bridge.setFocusable(true));
+    inp.addEventListener('blur', () => this.bridge && this.bridge.setFocusable(false));
+    wrap.appendChild(txt);
+
+    // Timer
+    const timer = el(`<h4>TIMER</h4><div class="quick">${[1, 5, 10, 15, 25, 30, 45, 60].map((m) => `<button data-m="${m}">${m} Min</button>`).join('')}</div>
+      <div class="stepper"><button data-d="-5">−5</button><button data-d="-1">−1</button><b>${D.min} Min</b><button data-d="1">+1</button><button data-d="5">+5</button><button class="go" data-go="timer">Timer starten</button></div>`, 'sec');
+    timer.querySelectorAll('.quick button').forEach((b) => b.addEventListener('click', () => { R.addTimer(+b.dataset.m, D.text.trim()); D.text = ''; this.render(); }));
+    timer.querySelectorAll('[data-d]').forEach((b) => b.addEventListener('click', () => { D.min = clamp(D.min + +b.dataset.d, 1, 600); this.render(); }));
+    timer.querySelector('[data-go]').addEventListener('click', () => { R.addTimer(D.min, D.text.trim()); D.text = ''; this.render(); });
+    wrap.appendChild(timer);
+
+    // Wecker
+    const alarm = el(`<h4>WECKER</h4><div class="stepper clock"><button data-h="-1">−</button><b>${pad(D.hh)}</b><button data-h="1">+</button><span>:</span><button data-n="-5">−</button><b>${pad(D.mm)}</b><button data-n="5">+</button>
+      <span class="rep">${[['einmalig', 'Einmal'], ['täglich', 'Täglich'], ['werktags', 'Mo–Fr']].map(([v, l]) => `<button data-r="${v}" class="${D.repeat === v ? 'on' : ''}">${l}</button>`).join('')}</span>
+      <button class="go" data-go="alarm">Wecker stellen</button></div>`, 'sec');
+    alarm.querySelectorAll('[data-h]').forEach((b) => b.addEventListener('click', () => { D.hh = (D.hh + +b.dataset.h + 24) % 24; this.render(); }));
+    alarm.querySelectorAll('[data-n]').forEach((b) => b.addEventListener('click', () => { D.mm = (D.mm + +b.dataset.n + 60) % 60; this.render(); }));
+    alarm.querySelectorAll('[data-r]').forEach((b) => b.addEventListener('click', () => { D.repeat = b.dataset.r; this.render(); }));
+    alarm.querySelector('[data-go]').addEventListener('click', () => { R.addAlarm(D.hh, D.mm, D.repeat, D.text.trim()); D.text = ''; this.render(); });
+    wrap.appendChild(alarm);
+
+    // Aktive
+    const list = [...R.list].sort((a, b) => a.at - b.at);
+    const act = el(`<h4>AKTIV</h4>`, 'sec');
+    if (!list.length) act.appendChild(el('Keine Timer oder Wecker gestellt.', 'empty'));
+    for (const r of list) {
+      const row = el(`<span class="kind">${r.kind === 'alarm' ? '⏰' : '⏱'}</span><span class="when"></span><span class="what"></span><button title="Löschen">✕</button>`, 'rem-row');
+      row.querySelector('.what').textContent = r.text || (r.kind === 'alarm' ? (r.repeat === 'einmalig' ? 'Wecker' : r.repeat === 'täglich' ? 'täglich' : 'Mo–Fr') : `Timer ${r.min || ''} Min`);
+      row.dataset.id = r.id;
+      row.querySelector('button').addEventListener('click', () => { R.remove(r.id); setTimeout(() => this.render(), 30); });
+      act.appendChild(row);
+    }
+    wrap.appendChild(act);
+    const tickRows = () => {
+      for (const row of wrap.querySelectorAll('.rem-row')) {
+        const r = R.list.find((x) => x.id === row.dataset.id);
+        if (!r) continue;
+        const left = r.at - Date.now();
+        row.querySelector('.when').textContent = r.kind === 'alarm' ? `${pad(r.hh)}:${pad(r.mm)} · in ${fmtLeft(left)}` : fmtLeft(left);
+      }
+    };
+    tickRows();
+    this.remTick = setInterval(tickRows, 1000);
+
+    // Automatisch
+    const auto = el(`<h4>AUTOMATISCH</h4>`, 'sec');
+    const cyc = (label, key, opts) => {
+      const row = el(`<span>${label}</span>` + opts.map(([v, l]) => `<button data-v="${v}" class="${s[key] === v ? 'on' : ''}">${l}</button>`).join(''), 'row radio');
+      row.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+        const v = b.dataset.v === 'true' ? true : b.dataset.v === 'false' ? false : +b.dataset.v;
+        this.api.set(key, v);
+        if (key === 'breakEvery') R.lastBreak = Date.now();
+        if (key === 'drinkEvery') R.lastDrink = Date.now();
+        setTimeout(() => this.render(), 30);
+      }));
+      auto.appendChild(row);
+    };
+    cyc('Pausen', 'breakEvery', [[0, 'Aus'], [30, '30 Min'], [45, '45 Min'], [60, '60 Min'], [90, '90 Min']]);
+    cyc('Trinken', 'drinkEvery', [[0, 'Aus'], [30, '30 Min'], [60, '60 Min'], [90, '90 Min']]);
+    cyc('Stunden', 'chime', [[false, 'Aus'], [true, 'Ansage zur vollen Stunde']]);
+    wrap.appendChild(auto);
+    c.appendChild(wrap);
   }
 
   statusText() {

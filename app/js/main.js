@@ -5,6 +5,7 @@
 const DEFAULT_SETTINGS = {
   mode: 'wechselnd', size: 0.72, volume: 0.55, activity: 'normal', cinematic: true, screenDamage: true, music: false,
   bubbles: true, hideFullscreen: true, climbWindows: true, display: 0, dock: true, paused: false, debug: false,
+  reminders: [], chime: false, breakEvery: 0, drinkEvery: 0,
 };
 
 // ---------------------------------------------------------------- Browser-Vorschau
@@ -70,7 +71,7 @@ class DemoWindows {
   if (!bridge) { try { stored = JSON.parse(localStorage.getItem('deskpet-settings') || '{}'); } catch (_) {} }
   const settings = { ...DEFAULT_SETTINGS, ...stored };
   for (const [k, v] of params) {
-    if (k in DEFAULT_SETTINGS) settings[k] = typeof DEFAULT_SETTINGS[k] === 'number' ? +v : typeof DEFAULT_SETTINGS[k] === 'boolean' ? v !== '0' && v !== 'false' : v;
+    if (k in DEFAULT_SETTINGS && !Array.isArray(DEFAULT_SETTINGS[k])) settings[k] = typeof DEFAULT_SETTINGS[k] === 'number' ? +v : typeof DEFAULT_SETTINGS[k] === 'boolean' ? v !== '0' && v !== 'false' : v;
   }
   if (params.has('seed')) setSeed(+params.get('seed'));
 
@@ -107,6 +108,7 @@ class DemoWindows {
   }
 
   function layout(l) {
+    if (l.version) world.version = l.version;
     world.resize(l.width, l.height);
     world.terrain.setLayout(l);
   }
@@ -134,10 +136,15 @@ class DemoWindows {
   }
 
   ui = new UI(world, bridge, api);
+  const reminders = new Reminders(world, api, bridge);
+  world.reminders = reminders;
+  const updates = new UpdateUI(world, bridge);
+  world.updates = updates;
+  if (bridge) bridge.on('update', (st) => updates.onState(st));
   const input = new Input(world, ui, bridge);
   director.setup();
   applySettings();
-  Object.assign(window.PET, { director, ui, input, api });
+  Object.assign(window.PET, { director, ui, input, api, reminders, updates });
 
   if (params.get('event')) setTimeout(() => director.startEvent(params.get('event')), +(params.get('delay') || 1500));
   if (params.has('menu')) setTimeout(() => ui.open(innerWidth * 0.55, innerHeight * 0.35), 400);
@@ -149,6 +156,9 @@ class DemoWindows {
     last = now;
     if (world.demoWindows) world.demoWindows.update(dt);
     input.update(Math.min(dt, 0.05));
+    reminders.update((now - (frame.prev || now)) / 1000);
+    updates.update();
+    frame.prev = now;
     world.update(dt);
     world.draw();
     requestAnimationFrame(frame);

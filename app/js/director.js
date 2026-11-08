@@ -8,6 +8,12 @@ const EVENT_LABELS = {
   besuch: 'Partner kommt vorbei', sparring: 'Sparring', plaudern: 'Plaudern', ball: 'Ballspiel', wechsel: 'Schichtwechsel',
 };
 
+function timeGreeting() {
+  const h = new Date().getHours();
+  return h < 5 || h >= 22 ? 'night' : h < 11 ? 'morning' : h < 17 ? 'day' : 'evening';
+}
+function isNight() { const h = new Date().getHours(); return h >= 23 || h < 6; }
+
 class Director {
   constructor(world) {
     this.world = world;
@@ -63,7 +69,7 @@ class Director {
     h.absent = false; h.ko = false; h.alpha = 1;
     h.x = clamp(W.mouse.active && style === 'cursor' ? W.mouse.x : rnd(T.W * 0.2, T.W * 0.8), 60, T.W - 60);
     h.y = T.floorY;
-    if (style === 'quiet') { h.land(T.surfaces[0], 0); h.alpha = 0; h.setTask('arrive', (function* () { for (let e = 0; e < 0.8; e += W.dt) { h.alpha = e / 0.8; yield; } h.alpha = 1; h.say('hello'); })(), 5); return; }
+    if (style === 'quiet') { h.land(T.surfaces[0], 0); h.alpha = 0; h.setTask('arrive', (function* () { for (let e = 0; e < 0.8; e += W.dt) { h.alpha = e / 0.8; yield; } h.alpha = 1; h.say(timeGreeting()); })(), 5); return; }
     h.setTask('arrive', (function* () {
       yield* h.arrive(style || (h.name === 'shadepi' ? pick(['drop', 'shadow']) : 'rope'));
       if (W.hasEnemies()) h.say('join', null, true); else h.say('arrive', null, true);
@@ -355,6 +361,7 @@ class Director {
       if (this.visit && this.visit.forFight) this.visit.until = W.time + rnd(8, 16);
       this.next = Math.max(this.next, rnd(25, 45) * W.calmFactor);
     }
+    if (fighting && !this.fightActive) { this.fightActive = true; this.fightGraceUntil = W.time + 2; W.fightKind = W.fightKind || 'custom'; Sound.setMusic(W.enemies.some((e) => e.boss && !e.dead) ? 'Boss' : 'Fight'); }
     // Wenn beide/alle Helden k.o. sind und kein Partner da: Hilfe rufen
     if (fighting && W.presentHeroes().every((h) => h.ko) && this.S.mode !== 'beide' && !this.visit) this.startVisit(true);
     // Doppelschlag

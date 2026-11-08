@@ -4,7 +4,7 @@
 const MANIFEST = window.PET_MANIFEST || {};
 const IMG = {};
 const IMAGE_FILES = {
-  shadepi: 'heroes/shadepi.png', raven: 'heroes/raven.png', poses: 'heroes/combat-poses.png', 'raven-sit': 'heroes/raven-sit.png', 'raven-lie': 'heroes/raven-lie.png',
+  shadepi: 'heroes/shadepi.png', raven: 'heroes/raven.png', poses: 'heroes/combat-poses.png', 'raven-sit': 'heroes/raven-sit.png', 'raven-lie': 'heroes/raven-lie.png', 'raven-climb': 'heroes/raven-climb.png', 'shadepi-climb': 'heroes/shadepi-climb.png',
   'punk-1': 'enemies/punk-1.png', 'punk-2': 'enemies/punk-2.png', 'punk-3': 'enemies/punk-3.png', 'punk-4': 'enemies/punk-4.png',
   'shooter-visor': 'enemies/shooter-visor.png', 'shooter-violet': 'enemies/shooter-violet.png', jackal: 'enemies/jackal.png',
   bot: 'enemies/bot.png', virus: 'enemies/virus.png', ice: 'enemies/ice.png', drone: 'enemies/drone.png',

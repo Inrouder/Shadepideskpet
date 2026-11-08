@@ -57,7 +57,12 @@ class Entity {
       // mit dem Fenster mitfahren
       if (this.wid && this.wid !== 'floor') {
         const a = this.anchorOf(this.wid);
-        if (a && this.winRef) { this.x += a.x - this.winRef.x; this.winRef = a; }
+        if (a && this.winRef) {
+          const dx = a.x - this.winRef.x, dy = a.y - this.winRef.y;
+          this.x += dx; this.winRef = a;
+          // Fenster ruckartig bewegt → herunterfallen
+          if (this.onWindowJolt && Math.hypot(dx, dy) > 45 && this.onWindowJolt(dx, dy)) return;
+        }
       }
       const s = this.wid === 'floor' ? T.surfaces[0] : T.surfaceOf(this.wid, this.x, 1);
       if (!s) { this.leaveGround(); }

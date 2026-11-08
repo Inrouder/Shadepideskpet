@@ -23,7 +23,7 @@ body { font-family: 'ShadepiPixel', monospace; color: var(--text); }
 
 /* Menü-Panel im Pixel-Rahmen */
 .panel {
-  position: fixed; width: 540px; max-height: 80vh; display: flex; flex-direction: column;
+  position: fixed; width: 590px; max-height: 80vh; display: flex; flex-direction: column;
   border-style: solid; border-width: 22px; border-image: url('assets/ui/frame.png') 22 fill / 22px stretch;
   image-rendering: pixelated; box-sizing: border-box; padding: 0 2px;
   filter: drop-shadow(0 10px 24px rgba(0,0,0,0.55));
@@ -85,3 +85,54 @@ body { font-family: 'ShadepiPixel', monospace; color: var(--text); }
 .act.warn:hover { border-color: var(--warn); }
 .status { font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); margin-top: 6px; }
 .hint { font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); margin: 8px 0 -10px; letter-spacing: 0.5px; }
+
+/* Wecker-Reiter */
+.alarm h4 { font-family: Silkscreen, monospace; font-size: 8px; color: var(--cyan); letter-spacing: 1px; margin: 8px 0 4px; font-weight: normal; }
+.alarm .sec { margin-bottom: 2px; }
+.alarm button { font-family: Silkscreen, monospace; font-size: 8px; background: #0d1420; border: 1px solid #253043; color: var(--text); padding: 5px 6px; cursor: pointer; }
+.alarm button:hover { border-color: var(--cyan); }
+.alarm button.on { border-color: var(--cyan); background: rgba(98,227,238,0.15); color: #fff; }
+.alarm button.go { background: rgba(98,227,238,0.18); border-color: var(--cyan); color: #fff; margin-left: auto; }
+.alarm .quick { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
+.alarm .stepper { display: flex; align-items: center; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.alarm .stepper b { font-family: ShadepiPixel, monospace; font-size: 22px; font-weight: normal; color: #fff; min-width: 34px; text-align: center; }
+.alarm .stepper span { color: var(--muted); font-size: 18px; }
+.alarm .stepper .rep { display: flex; gap: 2px; margin-left: 6px; }
+.alarm .row { display: flex; align-items: center; gap: 6px; }
+.alarm .rem-input { flex: 1; background: #05080c; border: 1px solid #253043; color: var(--text); font-family: ShadepiPixel, monospace; font-size: 17px; padding: 4px 8px; outline: none; }
+.alarm .rem-input:focus { border-color: var(--cyan); }
+.alarm .row.radio { font-size: 15px; margin-bottom: 3px; }
+.alarm .row.radio span { min-width: 64px; }
+.alarm .empty { font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); }
+.rem-row { display: flex; align-items: center; gap: 8px; background: rgba(13,20,32,0.85); border: 1px solid #253043; padding: 3px 6px; margin-bottom: 3px; font-size: 16px; }
+.rem-row .when { font-family: Silkscreen, monospace; font-size: 9px; color: var(--cyan); min-width: 120px; }
+.rem-row .what { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rem-row button { padding: 2px 6px !important; color: var(--warn) !important; }
+
+/* Erinnerungskarte über den Figuren */
+.remcard {
+  position: fixed; min-width: 220px; max-width: 340px; padding: 10px 14px 10px; box-sizing: border-box;
+  background: rgba(7,10,18,0.94); border: 1px solid var(--cyan); border-left: 4px solid var(--amber);
+  box-shadow: 0 0 22px rgba(98,227,238,0.35), inset 0 0 18px rgba(98,227,238,0.08);
+  animation: remin 0.35s ease-out, rempulse 1.6s ease-in-out infinite;
+}
+.remcard::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(98,227,238,0.05) 0 1px, transparent 1px 3px); }
+.remcard .rc-head { font-family: Silkscreen, monospace; font-size: 9px; letter-spacing: 1px; color: var(--amber); }
+.remcard .rc-text { font-size: 22px; color: #fff; margin: 4px 0 2px; line-height: 20px; word-wrap: break-word; }
+.remcard .rc-btns { display: flex; gap: 5px; margin-top: 8px; }
+.remcard button { flex: 1; font-family: Silkscreen, monospace; font-size: 8px; background: #0d1420; border: 1px solid #253043; color: var(--text); padding: 6px 4px; cursor: pointer; }
+.remcard button:first-child { border-color: var(--cyan); color: #fff; background: rgba(98,227,238,0.18); }
+.remcard button:hover { border-color: var(--cyan); }
+@keyframes remin { from { transform: translateY(14px) scale(0.9); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rempulse { 50% { box-shadow: 0 0 34px rgba(255,180,58,0.45), inset 0 0 18px rgba(98,227,238,0.08); } }
+
+/* Countdown an der Seitenleiste */
+#remhud { position: fixed; right: 0; top: calc(46% - 30px); font-family: Silkscreen, monospace; font-size: 9px; color: var(--cyan);
+  background: rgba(7,10,18,0.85); border: 1px solid #2a3342; border-right: none; padding: 5px 8px; white-space: nowrap; }
+#remhud.soon { color: var(--amber); border-color: var(--amber); animation: rempulse 1s infinite; }
+
+.remcard.update { border-left-color: var(--cyan); }
+.remcard.update .rc-head { color: var(--cyan); }
+.remcard .bar { height: 6px; background: #13202c; border: 1px solid #253043; margin-top: 6px; }
+.remcard .bar i { display: block; height: 100%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); transition: width 0.3s; }
