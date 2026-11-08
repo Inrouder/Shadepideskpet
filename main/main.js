@@ -2,7 +2,7 @@
 // Ein randloses, transparentes Overlay liegt über dem ganzen Bildschirm.
 // Mausklicks gehen durch, außer der Zeiger steht über einer Figur, einem
 // Gegenstand oder dem Menü (der Renderer meldet das per IPC).
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, globalShortcut, shell, Notification, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { WindowScanner, toOverlaySpace } = require('./windows');
@@ -47,6 +47,7 @@ let tray = null;
 let scanner = null;
 let settings = { ...DEFAULTS };
 let ignoring = true;
+let mouseRearms = 0, mouseAck = 0;
 let lastWindows = null;
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 let lastLoggedError = '';
@@ -112,6 +113,9 @@ function createOverlay() {
   overlay.setAlwaysOnTop(true, 'screen-saver');
   overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   overlay.setIgnoreMouseEvents(true, { forward: true });
+  // Nach dem Aus-/Einblenden (z. B. Spielmodus) ist die Maus-Weiterleitung unter Windows
+  // oft tot: Das Overlay bekommt keine Mausbewegungen mehr und das Menü reagiert nicht.
+  overlay.on('show', () => setTimeout(() => rearmMouse('wieder sichtbar'), 150));
   overlay.loadFile(path.join(__dirname, '..', 'app', 'index.html'));
   overlay.webContents.on('did-finish-load', () => {
     overlay.webContents.send('layout', layoutPayload());
@@ -126,6 +130,18 @@ function sendWindows(raw) {
   if (!overlay || overlay.isDestroyed() || gamePaused()) return;
   const data = toOverlaySpace(raw, targetDisplay());
   overlay.webContents.send('windows', data);
+}
+
+// Klick-Durchlass samt Weiterleitung frisch einrichten. Electron installiert die
+// Weiterleitung nur beim Wechsel aus/an – daher erst ausschalten, dann wieder an.
+function rearmMouse(why) {
+  if (!overlay || overlay.isDestroyed() || !overlay.isVisible()) return;
+  overlay.setIgnoreMouseEvents(false);
+  overlay.setIgnoreMouseEvents(true, { forward: true });
+  ignoring = true;
+  mouseRearms++;
+  send('mouse-reset', cursorInOverlay());
+  log(`Maus-Weiterleitung neu eingerichtet (${why})`);
 }
 
 function send(channel, payload) {
@@ -284,13 +300,20 @@ if (!app.requestSingleInstanceLock()) {
 
     // Selbsttest für den Build: --selftest=<datei> schreibt den Scannerstatus und beendet
     const st = process.argv.find((a) => a.startsWith('--selftest='));
+    if (st) {
+      // Spielmodus einmal durchspielen: ausblenden, wieder einblenden → Maus muss neu eingerichtet werden
+      setTimeout(() => { gaming = { active: true, name: 'Selbsttest', exe: 'selftest.exe', reason: 'test', since: Date.now() }; applyGaming(); }, 2000);
+      setTimeout(() => { gaming = { ...gaming, active: false }; applyGaming(); }, 3200);
+    }
     if (st) setTimeout(() => {
-      const out = { ...scanner.status(), surfacesRaw: lastWindows ? lastWindows.w.length : 0, games: !!gameDetect, gameInfo: lastGameInfo };
+      const out = { ...scanner.status(), surfacesRaw: lastWindows ? lastWindows.w.length : 0, games: !!gameDetect, gameInfo: lastGameInfo, visible: overlay.isVisible(), mouseRearms, mouseAck };
       try { fs.writeFileSync(st.slice(11), JSON.stringify(out)); } catch (_) {}
       app.exit(0);
     }, 6000);
 
     screen.on('display-metrics-changed', placeOverlay);
+    // Nach Standby/Sperrbildschirm verliert Windows ebenfalls gern die Maus-Weiterleitung
+    for (const ev of ['resume', 'unlock-screen']) powerMonitor.on(ev, () => setTimeout(() => rearmMouse(ev), 800));
     screen.on('display-added', () => { placeOverlay(); buildTray(); });
     screen.on('display-removed', () => { placeOverlay(); buildTray(); });
   });
@@ -306,6 +329,7 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('game-check', () => checkGames());
   ipcMain.on('update-check', () => updater && updater.check(true));
   ipcMain.on('update-install', () => updater && updater.install());
+  ipcMain.on('rearm-mouse', (_e, why) => rearmMouse(String(why || 'Renderer')));
   ipcMain.on('set-focusable', (_e, on) => {
     if (!overlay) return;
     overlay.setFocusable(!!on);
@@ -314,7 +338,7 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('notify', (_e, { title, body }) => {
     try { if (Notification.isSupported()) new Notification({ title: `Shadepi Deskpet · ${title}`, body, icon: path.join(__dirname, '..', 'app', 'assets', 'ui', 'icon.png'), silent: true }).show(); } catch (_) {}
   });
-  ipcMain.on('log', (_e, msg) => log('Renderer: ' + String(msg).slice(0, 2000)));
+  ipcMain.on('log', (_e, msg) => { if (msg === 'mouse-reset ok') { mouseAck++; return; } log('Renderer: ' + String(msg).slice(0, 2000)); });
   ipcMain.on('open-log', () => shell.openPath(path.join(app.getPath('userData'))));
   ipcMain.on('hide', () => toggleVisible());
   ipcMain.on('autostart', (_e, on) => setAutostart(on));

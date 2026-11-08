@@ -76,6 +76,8 @@ jobs:
           if ($res.method -ne 'native') { throw "Scanner nicht nativ: $($res.method) $($res.error)" }
           if ($res.windows -lt 1) { throw 'Keine Fenster erkannt' }
           if (-not $res.games) { throw 'Spielerkennung nicht geladen' }
+          if (-not $res.visible) { throw 'Overlay nach dem Spielmodus nicht wieder sichtbar' }
+          if ($res.mouseRearms -lt 1 -or $res.mouseAck -lt 1) { throw "Maus nach dem Spielmodus nicht neu eingerichtet ($($res.mouseRearms)/$($res.mouseAck))" }
 
       - uses: actions/upload-artifact@v4
         with:

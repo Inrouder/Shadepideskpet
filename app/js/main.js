@@ -159,6 +159,7 @@ class DemoWindows {
   // Erinnerungen laufen auch weiter, wenn das Overlay im Spielmodus unsichtbar ist
   setInterval(() => { if (world.gaming) reminders.update(1.01); }, 1000);
   const input = new Input(world, ui, bridge);
+  if (bridge) bridge.on('mouse-reset', (c) => input.reset(c));
   const dojo = new Dojo(world, bridge, input);
   world.dojo = dojo; world.ui = ui;
   director.setup();

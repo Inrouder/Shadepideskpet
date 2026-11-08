@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const listeners = {};
-for (const ch of ['layout', 'settings', 'windows', 'open-menu', 'event', 'scanner', 'update', 'gaming', 'games', 'sensors', 'dojo']) {
+for (const ch of ['layout', 'settings', 'windows', 'open-menu', 'event', 'scanner', 'update', 'gaming', 'games', 'sensors', 'dojo', 'mouse-reset']) {
   ipcRenderer.on(ch, (_e, data) => (listeners[ch] || []).forEach((fn) => fn(data)));
 }
 
@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('deskpet', {
   setIgnore: (ignore) => ipcRenderer.send('set-ignore', !!ignore),
   setSetting: (key, value) => ipcRenderer.send('set-setting', { key, value }),
   cursor: () => ipcRenderer.sendSync('get-cursor'),
+  rearmMouse: (why) => ipcRenderer.send('rearm-mouse', why),
   autostart: (on) => ipcRenderer.send('autostart', on),
   hide: () => ipcRenderer.send('hide'),
   quit: () => ipcRenderer.send('quit'),
