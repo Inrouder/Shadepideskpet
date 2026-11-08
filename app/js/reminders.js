@@ -87,6 +87,7 @@ class Reminders {
     if (this.acc < 1) return;
     this.acc = 0;
     const now = Date.now();
+    const d0 = new Date(now);
     const s = this.world.settings;
     // fällige Einträge
     const due = this.list.filter((r) => r.at <= now);
@@ -94,12 +95,16 @@ class Reminders {
       const keep = [];
       for (const r of this.list) {
         if (r.at > now) { keep.push(r); continue; }
-        this.queue.push({ ...r });
+        const q = { ...r };
+        // Während eines Spiels: nur eine stille Windows-Benachrichtigung, Auftritt danach
+        if (this.world.gaming && this.bridge && this.bridge.notify) { this.bridge.notify(r.kind === 'alarm' ? 'Wecker' : 'Timer', r.text || 'Zeit ist um.'); q.notified = true; }
+        this.queue.push(q);
         if (r.kind === 'alarm' && r.repeat && r.repeat !== 'einmalig') keep.push({ ...r, at: nextAt(r.hh, r.mm, r.repeat, new Date(now + 1000)) });
       }
       this.save(keep);
     }
     // automatische Erinnerungen
+    if (this.world.gaming) { this.lastBreak = Math.max(this.lastBreak, now - 5 * 60000); this.lastDrink = Math.max(this.lastDrink, now - 5 * 60000); this.lastChimeHour = d0.getHours(); }
     if (s.breakEvery > 0 && now - this.lastBreak > s.breakEvery * 60000) { this.lastBreak = now; this.queue.push({ kind: 'break', text: '' }); }
     if (s.drinkEvery > 0 && now - this.lastDrink > s.drinkEvery * 60000) { this.lastDrink = now; this.queue.push({ kind: 'drink', text: '' }); }
     const d = new Date();
@@ -108,7 +113,7 @@ class Reminders {
       const h = this.speaker();
       if (h) { h.talk(remLine(h.name, 'chime', d.getHours()), true); Sound.play('calib_accept', 0.4, 0.9); this.world.fx.label(h.x, h.y - 130 * this.world.u, fmtClock(d), COLORS.cyan, 22, 2.2); }
     }
-    if (!this.active && this.queue.length) this.deliver(this.queue.shift());
+    if (!this.active && this.queue.length && !this.world.gaming && now > (this.holdUntil || 0)) this.deliver(this.queue.shift());
   }
 
   // ---------------------------------------------------------- Überbringen
@@ -124,7 +129,7 @@ class Reminders {
     rem.line = (h) => remLine(h.name, rem.kind, rem.kind === 'alarm' ? rem.text : rem.text, clock);
     if (strong) { W.cinema.letterbox(2.4); W.cinema.card(rem.title, rem.text ? rem.text.toUpperCase() : 'SHADEPI DESKPET', COLORS.amber, 2.6, { always: true }); }
     Sound.play(strong ? 'calib_alarm' : 'calib_accept', strong ? 0.7 : 0.5);
-    if (this.bridge && this.bridge.notify) this.bridge.notify(rem.title.charAt(0) + rem.title.slice(1).toLowerCase(), rem.text || ({ break: 'Zeit für eine Pause.', drink: 'Trink ein Glas Wasser.' }[rem.kind] || 'Zeit ist um.'));
+    if (this.bridge && this.bridge.notify && !rem.notified) this.bridge.notify(rem.title.charAt(0) + rem.title.slice(1).toLowerCase(), rem.text || ({ break: 'Zeit für eine Pause.', drink: 'Trink ein Glas Wasser.' }[rem.kind] || 'Zeit ist um.'));
     this.deliverers = heroes.slice(0, 2);
     for (const h of this.deliverers) h.setTask('remind', h.remind(rem, this), 4.5);
     this.buildCard(rem, strong);

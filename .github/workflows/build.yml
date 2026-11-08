@@ -29,6 +29,9 @@ jobs:
       - name: Fensterscanner testen (Windows-API)
         run: node main/winscan-native.js
 
+      - name: Spielerkennung testen
+        run: node main/games.js
+
       - name: Fensterscanner testen (PowerShell)
         shell: pwsh
         run: |
@@ -69,6 +72,7 @@ jobs:
           Write-Output $res
           if ($res.method -ne 'native') { throw "Scanner nicht nativ: $($res.method) $($res.error)" }
           if ($res.windows -lt 1) { throw 'Keine Fenster erkannt' }
+          if (-not $res.games) { throw 'Spielerkennung nicht geladen' }
 
       - uses: actions/upload-artifact@v4
         with:

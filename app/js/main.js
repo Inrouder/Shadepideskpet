@@ -5,7 +5,7 @@
 const DEFAULT_SETTINGS = {
   mode: 'wechselnd', size: 0.72, volume: 0.55, activity: 'normal', cinematic: true, screenDamage: true, music: false,
   bubbles: true, hideFullscreen: true, climbWindows: true, display: 0, dock: true, paused: false, debug: false,
-  reminders: [], chime: false, breakEvery: 0, drinkEvery: 0,
+  reminders: [], chime: false, breakEvery: 0, drinkEvery: 0, gamePause: true, gameOwn: [], gameIgnore: [],
 };
 
 // ---------------------------------------------------------------- Browser-Vorschau
@@ -140,7 +140,18 @@ class DemoWindows {
   world.reminders = reminders;
   const updates = new UpdateUI(world, bridge);
   world.updates = updates;
-  if (bridge) bridge.on('update', (st) => updates.onState(st));
+  if (bridge) {
+    bridge.on('update', (st) => updates.onState(st));
+    bridge.on('games', (info) => { world.gameInfo = info; if (ui.isOpen && ui.tab === 'system') ui.updateGames(); });
+    bridge.on('gaming', (g) => {
+      const was = world.gaming;
+      world.gaming = g.active;
+      Sound.setMusic(null);
+      if (was && !g.active) { reminders.holdUntil = Date.now() + 7000; setTimeout(() => director.afterGame(g), 900); }
+    });
+  }
+  // Erinnerungen laufen auch weiter, wenn das Overlay im Spielmodus unsichtbar ist
+  setInterval(() => { if (world.gaming) reminders.update(1.01); }, 1000);
   const input = new Input(world, ui, bridge);
   director.setup();
   applySettings();
@@ -154,6 +165,7 @@ class DemoWindows {
   function frame(now) {
     const dt = ((now - last) / 1000) * speed;
     last = now;
+    if (world.gaming) { frame.prev = now; requestAnimationFrame(frame); return; }
     if (world.demoWindows) world.demoWindows.update(dt);
     input.update(Math.min(dt, 0.05));
     reminders.update((now - (frame.prev || now)) / 1000);

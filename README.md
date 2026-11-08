@@ -33,6 +33,15 @@ Im Menü unter **Wecker**:
 
 Wenn es so weit ist, kommen Shadepi und/oder Raven zu deinem Mauszeiger gelaufen. Raven projiziert ein Hologramm, Shadepi springt auf und ab, dazu Letterbox, Titelkarte und Alarmton. Eine Karte über den beiden bietet **Erledigt**, **+5 Min** und **+10 Min**. Ignorierst du sie, werden die beiden ungeduldig. Zusätzlich erscheint eine Windows-Benachrichtigung. Der nächste Countdown steht klein an der Seitenleiste.
 
+## Spielmodus
+
+Startest du ein Spiel, legt sich das Maskottchen komplett schlafen: Das Overlay verschwindet, nichts wird mehr gezeichnet, kein Ton, keine Ereignisse. Erst wenn das Spiel beendet ist, kommen die beiden zurück und fragen, wie es lief.
+
+- Erkannt werden Spiele aus **Steam, Epic, GOG, Ubisoft, EA, Xbox, Rockstar, Riot, Amazon, itch.io**, aus Ordnern wie `D:\Games\…` sowie echte **Direct3D-Vollbild-Spiele**. Launcher wie Steam oder der Epic Launcher zählen nicht.
+- Fehlt ein Spiel: Menü → System → Spielmodus → **„Als Spiel merken“** (zeigt die gerade offenen Programme). Wird etwas fälschlich erkannt: im Tray **„… ist kein Spiel“**.
+- Timer und Wecker, die während des Spiels fällig werden, kommen als stille Windows-Benachrichtigung; der große Auftritt folgt nach dem Spiel. Pausen- und Trink-Erinnerungen ruhen.
+- Im Tray: **„Trotzdem anzeigen“**, falls du sie doch beim Spielen dabeihaben willst.
+
 ## Updates
 
 Die installierte Version (Setup) sucht beim Start und alle 6 Stunden nach einer neuen Version, lädt sie im Hintergrund und installiert sie beim nächsten Neustart. Raven meldet das Update und zeigt den Download-Fortschritt. Die portable EXE meldet neue Versionen und öffnet den Download. Manuell: Menü → System → „Nach Updates suchen“ oder im Tray-Menü.

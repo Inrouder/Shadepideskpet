@@ -62,7 +62,7 @@ function createNativeScanner(ownPid) {
       if (w < 120 || hh < 60) continue;
       let title = text(GetWindowTextW, cur);
       if (title.length > 60) title = title.slice(0, 60);
-      out.push({ id: Number(cur), x: r.left, y: r.top, w, h: hh, max: IsZoomed(cur) ? 1 : 0, t: title, c: cls, top: ex & 0x8 ? 1 : 0 });
+      out.push({ id: Number(cur), pid: pid[0], x: r.left, y: r.top, w, h: hh, max: IsZoomed(cur) ? 1 : 0, t: title, c: cls, top: ex & 0x8 ? 1 : 0 });
     }
     return { fg, w: out };
   };

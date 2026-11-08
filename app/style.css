@@ -136,3 +136,14 @@ body { font-family: 'ShadepiPixel', monospace; color: var(--text); }
 .remcard.update .rc-head { color: var(--cyan); }
 .remcard .bar { height: 6px; background: #13202c; border: 1px solid #253043; margin-top: 6px; }
 .remcard .bar i { display: block; height: 100%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); transition: width 0.3s; }
+
+/* Spielmodus */
+.games { margin-top: 8px; }
+.games h4 { font-family: Silkscreen, monospace; font-size: 8px; color: var(--cyan); letter-spacing: 1px; margin: 0 0 4px; font-weight: normal; }
+.games .gstatus { font-size: 15px; color: var(--text); background: rgba(13,20,32,0.85); border: 1px solid #253043; padding: 4px 8px; margin-bottom: 4px; }
+.games .grow { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-bottom: 3px; font-size: 14px; }
+.games .grow span { min-width: 110px; color: var(--muted); }
+.games .chip { font-family: Silkscreen, monospace; font-size: 8px; background: #0d1420; border: 1px solid #253043; color: var(--text); padding: 4px 6px; cursor: pointer; }
+.games .chip.add:hover { border-color: var(--cyan); }
+.games .chip.own { border-color: var(--cyan); color: #fff; }
+.games .chip.ign { color: var(--muted); }

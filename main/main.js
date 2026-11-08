@@ -8,6 +8,11 @@ const fs = require('fs');
 const { WindowScanner, toOverlaySpace } = require('./windows');
 const { Updater } = require('./updater');
 let updater = null;
+let gameDetect = null;
+let gaming = { active: false, name: '', exe: '', reason: '', since: 0 };
+let gameOverride = false;   // „Trotzdem anzeigen“ bis das Spiel endet
+let userHidden = false;
+let lastGameInfo = null;
 
 const DEFAULTS = {
   mode: 'wechselnd',        // shadepi | raven | beide | wechselnd
@@ -27,6 +32,9 @@ const DEFAULTS = {
   chime: false,
   breakEvery: 0,
   drinkEvery: 0,
+  gamePause: true,
+  gameOwn: [],
+  gameIgnore: [],
 };
 
 let overlay = null;
@@ -106,11 +114,11 @@ function createOverlay() {
     if (lastWindows) sendWindows(lastWindows);
   });
   // Manche Programme drängeln sich nach vorn; regelmäßig wieder nach oben holen.
-  setInterval(() => { if (overlay && !overlay.isDestroyed()) { overlay.setAlwaysOnTop(true, 'screen-saver'); overlay.moveTop(); } }, 4000);
+  setInterval(() => { if (overlay && !overlay.isDestroyed() && overlay.isVisible() && !gaming.active) { overlay.setAlwaysOnTop(true, 'screen-saver'); overlay.moveTop(); } }, 4000);
 }
 
 function sendWindows(raw) {
-  if (!overlay || overlay.isDestroyed()) return;
+  if (!overlay || overlay.isDestroyed() || gamePaused()) return;
   const data = toOverlaySpace(raw, targetDisplay());
   overlay.webContents.send('windows', data);
 }
@@ -130,6 +138,7 @@ function setSetting(key, value) {
   saveSettings();
   send('settings', settings);
   if (key === 'display') placeOverlay();
+  if (key.startsWith('game')) setTimeout(checkGames, 50);
   buildTray();
 }
 
@@ -144,8 +153,15 @@ function buildTray() {
   const radio = (label, key, value) => ({ label, type: 'radio', checked: settings[key] === value, click: () => setSetting(key, value) });
   const check = (label, key) => ({ label, type: 'checkbox', checked: !!settings[key], click: (i) => setSetting(key, i.checked) });
   const displays = screen.getAllDisplays();
+  const gameItems = gaming.active ? [
+    { label: `🎮 Spielmodus: ${gaming.name}${gameOverride ? ' (trotzdem sichtbar)' : ' – pausiert'}`, enabled: false },
+    gameOverride ? { label: 'Wieder pausieren', click: () => { gameOverride = false; applyGaming(); } } : { label: 'Trotzdem anzeigen', click: () => { gameOverride = true; userHidden = false; applyGaming(); } },
+    ...(gaming.exe ? [{ label: `„${gaming.exe}“ ist kein Spiel`, click: () => { setSetting('gameIgnore', [...new Set([...(settings.gameIgnore || []), gaming.exe])]); checkGames(); } }] : []),
+    { type: 'separator' },
+  ] : [];
   const menu = Menu.buildFromTemplate([
     { label: 'Shadepi Deskpet', enabled: false },
+    ...gameItems,
     { label: 'Menü öffnen  (Strg+Alt+P)', click: () => send('open-menu', cursorInOverlay()) },
     { type: 'separator' },
     { label: 'Maskottchen', submenu: [radio('Shadepi', 'mode', 'shadepi'), radio('Raven', 'mode', 'raven'), radio('Beide', 'mode', 'beide'), radio('Abwechselnd (Besuche)', 'mode', 'wechselnd')] },
@@ -153,7 +169,7 @@ function buildTray() {
     { label: 'Aktivität', submenu: [radio('Ruhig', 'activity', 'ruhig'), radio('Normal', 'activity', 'normal'), radio('Chaos', 'activity', 'chaos')] },
     { label: 'Einstellungen', submenu: [
       check('Kino-Effekte', 'cinematic'), check('Bildschirmschäden (Löcher, Luke)', 'screenDamage'), check('Fenster beklettern', 'climbWindows'),
-      check('Sprechblasen', 'bubbles'), check('Kampfmusik', 'music'), check('Bei Vollbild ausblenden', 'hideFullscreen'), check('Seitenleiste anzeigen', 'dock'),
+      check('Bei Spielen pausieren', 'gamePause'), check('Sprechblasen', 'bubbles'), check('Kampfmusik', 'music'), check('Bei Vollbild ausblenden', 'hideFullscreen'), check('Seitenleiste anzeigen', 'dock'),
       { label: 'Bildschirm', submenu: displays.map((d, i) => radio(`Bildschirm ${i + 1} (${d.bounds.width}×${d.bounds.height})`, 'display', i)) },
     ] },
     { type: 'separator' },
@@ -177,7 +193,43 @@ function setAutostart(on) { try { app.setLoginItemSettings({ openAtLogin: !!on, 
 
 function toggleVisible() {
   if (!overlay) return;
-  if (overlay.isVisible()) overlay.hide(); else overlay.showInactive();
+  if (overlay.isVisible()) { overlay.hide(); userHidden = true; }
+  else { userHidden = false; if (gaming.active) gameOverride = true; overlay.showInactive(); }
+  buildTray();
+}
+
+// ---------------------------------------------------------------- Spielmodus
+function gamePaused() { return gaming.active && !gameOverride; }
+function applyGaming() {
+  if (!overlay || overlay.isDestroyed()) return;
+  if (gamePaused()) { if (overlay.isVisible()) overlay.hide(); }
+  else if (!userHidden && !overlay.isVisible()) { overlay.showInactive(); overlay.setAlwaysOnTop(true, 'screen-saver'); }
+  send('gaming', { active: gamePaused(), name: gaming.name, exe: gaming.exe, reason: gaming.reason, minutes: gaming.since ? Math.round((Date.now() - gaming.since) / 60000) : 0 });
+  buildTray();
+}
+function checkGames() {
+  if (!gameDetect) return;
+  let res;
+  try { res = gameDetect({ own: settings.gameOwn, ignore: settings.gameIgnore }); } catch (e) { log('Spielerkennung: ' + e.message); return; }
+  const game = settings.gamePause ? res.game : null;
+  // Kandidaten zum Merken: Programme mit sichtbarem Fenster
+  const exeByPid = new Map(res.procs.map((p) => [p.pid, p.path.slice(p.path.lastIndexOf('\\') + 1).toLowerCase()]));
+  const visible = [];
+  for (const w of (lastWindows && lastWindows.w) || []) { const e = exeByPid.get(w.pid); if (e && !visible.includes(e) && e !== 'explorer.exe' && e !== 'applicationframehost.exe') visible.push(e); }
+  lastGameInfo = { supported: true, game, visible: visible.slice(0, 10) };
+  send('games', lastGameInfo);
+  const was = gaming.active;
+  if (game && !was) {
+    gaming = { active: true, name: game.name, exe: game.exe, reason: game.reason, since: Date.now() };
+    gameOverride = false;
+    log(`Spiel erkannt: ${game.name} (${game.exe || game.reason}) – pausiert`);
+    applyGaming();
+  } else if (!game && was) {
+    gaming = { ...gaming, active: false };
+    gameOverride = false;
+    applyGaming();
+    gaming.since = 0;
+  }
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -196,6 +248,10 @@ if (!app.requestSingleInstanceLock()) {
     globalShortcut.register('CommandOrControl+Alt+P', () => send('open-menu', cursorInOverlay()));
     globalShortcut.register('CommandOrControl+Alt+H', toggleVisible);
 
+    try { gameDetect = require('./games').createGameDetector(); } catch (e) { if (process.platform === 'win32') log('Spielerkennung nicht verfügbar: ' + e.message); }
+    if (gameDetect) { setInterval(checkGames, 2500); setTimeout(checkGames, 1500); }
+    else setInterval(() => send('games', { supported: false }), 5000);
+
     updater = new Updater((ch, st) => { send(ch, st); if (st.state === 'ready' || st.state === 'none') buildTray(); }, log);
     updater.start();
 
@@ -211,7 +267,7 @@ if (!app.requestSingleInstanceLock()) {
     // Selbsttest für den Build: --selftest=<datei> schreibt den Scannerstatus und beendet
     const st = process.argv.find((a) => a.startsWith('--selftest='));
     if (st) setTimeout(() => {
-      const out = { ...scanner.status(), surfacesRaw: lastWindows ? lastWindows.w.length : 0 };
+      const out = { ...scanner.status(), surfacesRaw: lastWindows ? lastWindows.w.length : 0, games: !!gameDetect, gameInfo: lastGameInfo };
       try { fs.writeFileSync(st.slice(11), JSON.stringify(out)); } catch (_) {}
       app.exit(0);
     }, 6000);
@@ -229,6 +285,7 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('set-setting', (_e, { key, value }) => { if (key in DEFAULTS) setSetting(key, value); });
   ipcMain.on('get-cursor', (e) => { e.returnValue = cursorInOverlay(); });
   ipcMain.on('quit', () => app.quit());
+  ipcMain.on('game-check', () => checkGames());
   ipcMain.on('update-check', () => updater && updater.check(true));
   ipcMain.on('update-install', () => updater && updater.install());
   ipcMain.on('set-focusable', (_e, on) => {

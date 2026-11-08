@@ -160,6 +160,7 @@ class UI {
     toggle('Sprechblasen', 'bubbles');
     toggle('Kampfmusik', 'music');
     toggle('Bei Vollbild ausblenden', 'hideFullscreen');
+    toggle('Bei Spielen pausieren', 'gamePause');
     toggle('Seitenleiste', 'dock');
     toggle('Ruhemodus', 'paused');
     const actions = document.createElement('div'); actions.className = 'actions';
@@ -171,7 +172,11 @@ class UI {
       act('Beenden', () => this.bridge.quit(), 'warn');
     }
     act(s.debug ? 'Flächen verbergen' : 'Flächen anzeigen', () => { this.api.set('debug', !s.debug); setTimeout(() => this.render(), 30); });
-    c.appendChild(wrap); c.appendChild(actions);
+    c.appendChild(wrap);
+    const games = document.createElement('div'); games.className = 'games';
+    c.appendChild(games);
+    this.updateGames(games);
+    c.appendChild(actions);
     const st = document.createElement('div'); st.className = 'status';
     st.textContent = this.statusText();
     c.appendChild(st);
@@ -257,6 +262,27 @@ class UI {
     cyc('Stunden', 'chime', [[false, 'Aus'], [true, 'Ansage zur vollen Stunde']]);
     wrap.appendChild(auto);
     c.appendChild(wrap);
+  }
+
+  // Spielmodus: eigene Spiele merken / Fehlalarme ignorieren
+  updateGames(el) {
+    el = el || (this.menu && this.menu.querySelector('.games'));
+    if (!el) return;
+    const W = this.world, s = W.settings, info = W.gameInfo;
+    const chip = (name, cls, title, onClick) => { const b = document.createElement('button'); b.className = 'chip ' + cls; b.textContent = name; b.title = title; b.addEventListener('click', onClick); return b; };
+    el.innerHTML = '<h4>SPIELMODUS</h4>';
+    const st = document.createElement('div'); st.className = 'gstatus';
+    st.textContent = !this.bridge ? 'In der Browser-Vorschau nicht verfügbar.'
+      : info && info.supported === false ? 'Spielerkennung nur unter Windows.'
+      : !s.gamePause ? 'Aus – die beiden bleiben auch beim Spielen sichtbar.'
+      : info && info.game ? `Erkannt: ${info.game.name} – pausiert` : 'Kein Spiel erkannt. Spiele aus Steam, Epic, GOG, Ubisoft, EA, Xbox, Rockstar und Vollbild-Spiele pausieren automatisch.';
+    el.appendChild(st);
+    const row = (label, items) => { const r = document.createElement('div'); r.className = 'grow'; const l = document.createElement('span'); l.textContent = label; r.appendChild(l); items.forEach((i) => r.appendChild(i)); el.appendChild(r); };
+    const own = s.gameOwn || [], ign = s.gameIgnore || [];
+    const visible = ((info && info.visible) || []).filter((e) => !own.includes(e) && !ign.includes(e));
+    if (visible.length) row('Als Spiel merken:', visible.slice(0, 8).map((e) => chip('+ ' + e.replace(/\.exe$/, ''), 'add', e, () => { this.api.set('gameOwn', [...own, e]); setTimeout(() => this.updateGames(), 40); })));
+    if (own.length) row('Eigene Spiele:', own.map((e) => chip(e.replace(/\.exe$/, '') + ' ✕', 'own', 'Entfernen', () => { this.api.set('gameOwn', own.filter((x) => x !== e)); setTimeout(() => this.updateGames(), 40); })));
+    if (ign.length) row('Kein Spiel:', ign.map((e) => chip(e.replace(/\.exe$/, '') + ' ✕', 'ign', 'Wieder erkennen', () => { this.api.set('gameIgnore', ign.filter((x) => x !== e)); setTimeout(() => this.updateGames(), 40); })));
   }
 
   statusText() {

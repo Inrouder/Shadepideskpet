@@ -345,6 +345,25 @@ class Director {
     tR.done = true;
   }
 
+  // Nach einem Spiel wieder da
+  afterGame(g) {
+    const W = this.world;
+    const hs = W.presentHeroes().filter((h) => !h.ko);
+    if (!hs.length) return;
+    const h = pick(hs);
+    const m = g.minutes || 0;
+    const name = g.name && g.name !== 'Vollbild-Spiel' ? g.name : '';
+    const lines = h.name === 'raven'
+      ? [name ? `Na, wie war ${name}? Gewonnen?` : 'Na, gewonnen?', 'Willkommen zurück! Mir war sooo langweilig.', m >= 60 ? `Über ${Math.floor(m / 60)} Stunde${m >= 120 ? 'n' : ''} gezockt! Respekt.` : 'Endlich! Ich hab die Stellung gehalten.']
+      : [name ? `Wie war die Schlacht in ${name}?` : 'Wie war die Schlacht?', 'Du bist zurück. Gut.', m >= 60 ? 'Lange gekämpft. Mach eine Pause.' : 'Ich habe gewacht, während du gespielt hast.'];
+    W.cinema.card('WILLKOMMEN ZURÜCK', (name ? name.toUpperCase() + ' · ' : '') + (m ? `${m} MIN GESPIELT` : 'SPIEL BEENDET'), COLORS.cyan, 2.4, { small: true });
+    h.faceCam = true;
+    h.talk(pick(lines), true);
+    setTimeout(() => { if (!h.task) h.faceCam = false; }, 2500);
+    const p = hs.find((x) => x !== h);
+    if (p) setTimeout(() => p.talk(p.name === 'raven' ? 'Und? Erzähl!' : '…Willkommen zurück.', true), 2600);
+  }
+
   // -------------------------------------------------- Takt
   update(dt) {
     const W = this.world;
