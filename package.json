@@ -22,7 +22,7 @@
   "build": {
     "appId": "de.inrouder.shadepideskpet",
     "productName": "Shadepi Deskpet",
-    "artifactName": "Shadepi-Deskpet-${version}-${arch}-${target}.${ext}",
+    "artifactName": "Shadepi-Deskpet-${version}-${arch}.${ext}",
     "files": [
       "main/**",
       "app/**",
@@ -42,7 +42,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "Shadepi Deskpet"
+      "shortcutName": "Shadepi Deskpet",
+      "artifactName": "Shadepi-Deskpet-${version}-Setup.${ext}"
     },
     "portable": {
       "artifactName": "Shadepi-Deskpet-${version}-portable.exe"
