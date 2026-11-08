@@ -195,6 +195,14 @@ if (!app.requestSingleInstanceLock()) {
       send('scanner', st);
     }, 2000);
 
+    // Selbsttest für den Build: --selftest=<datei> schreibt den Scannerstatus und beendet
+    const st = process.argv.find((a) => a.startsWith('--selftest='));
+    if (st) setTimeout(() => {
+      const out = { ...scanner.status(), surfacesRaw: lastWindows ? lastWindows.w.length : 0 };
+      try { fs.writeFileSync(st.slice(11), JSON.stringify(out)); } catch (_) {}
+      app.exit(0);
+    }, 6000);
+
     screen.on('display-metrics-changed', placeOverlay);
     screen.on('display-added', () => { placeOverlay(); buildTray(); });
     screen.on('display-removed', () => { placeOverlay(); buildTray(); });

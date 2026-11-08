@@ -46,6 +46,16 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+      - name: Gepacktes Programm testen
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'selftest.json'
+          Start-Process -FilePath 'dist/win-unpacked/Shadepi Deskpet.exe' -ArgumentList "--selftest=$out" -Wait -PassThru | Out-Null
+          $res = Get-Content $out -Raw | ConvertFrom-Json
+          Write-Output $res
+          if ($res.method -ne 'native') { throw "Scanner nicht nativ: $($res.method) $($res.error)" }
+          if ($res.windows -lt 1) { throw 'Keine Fenster erkannt' }
+
       - uses: actions/upload-artifact@v4
         with:
           name: Shadepi-Deskpet-Windows
