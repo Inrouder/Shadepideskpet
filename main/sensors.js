@@ -92,7 +92,7 @@ class Sensors {
   startProbe() {
     if (process.platform !== 'win32') return;
     try {
-      const script = fs.readFileSync(path.join(__dirname, 'sensors.ps1'), 'utf8').replace('__OWNPID__', String(process.pid)).replace('__LOOPS__', '0');
+      const script = fs.readFileSync(path.join(__dirname, 'sensors.ps1'), 'utf8').replaceAll('__OWNPID__', String(process.pid)).replaceAll('__LOOPS__', '0');
       this.ps = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
       let buf = '';
       this.ps.stdout.setEncoding('utf8');
@@ -155,10 +155,10 @@ if (require.main === module) {
     console.log(JSON.stringify(s.data, null, 1));
     // Fühlerskript einmal direkt laufen lassen
     if (process.platform === 'win32') {
-      const script = fs.readFileSync(path.join(__dirname, 'sensors.ps1'), 'utf8').replace('__OWNPID__', String(process.pid)).replace('__LOOPS__', '1');
+      const script = fs.readFileSync(path.join(__dirname, 'sensors.ps1'), 'utf8').replaceAll('__OWNPID__', String(process.pid)).replaceAll('__LOOPS__', '1');
       execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { timeout: 60000 }, (err, out) => {
         console.log('Fühler:', err ? err.message : String(out).trim());
-        process.exit(0);
+        process.exit(err || !String(out).trim().startsWith('{') ? 1 : 0);
       });
     } else process.exit(0);
   }, 1500);

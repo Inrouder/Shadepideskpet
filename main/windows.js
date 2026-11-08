@@ -41,7 +41,7 @@ class WindowScanner {
   }
 
   startPowerShell() {
-    const script = fs.readFileSync(path.join(__dirname, 'winscan.ps1'), 'utf8').replace('__OWNPID__', String(process.pid));
+    const script = fs.readFileSync(path.join(__dirname, 'winscan.ps1'), 'utf8').replaceAll('__OWNPID__', String(process.pid));
     const encoded = Buffer.from(script, 'utf16le').toString('base64');
     this.proc = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded], {
       windowsHide: true,
