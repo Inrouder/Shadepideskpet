@@ -8,6 +8,17 @@ const fs = require('fs');
 const { WindowScanner, toOverlaySpace } = require('./windows');
 const { Updater } = require('./updater');
 const { Sensors } = require('./sensors');
+// Chromium hält transparente Overlays nach der Bildschirmsperre sonst manchmal für
+// „verdeckt“ und zeichnet nicht mehr – die Animation bliebe stehen.
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+// Testhilfe: DESKPET_FAKE_DISPLAYS='[{"id":1,"bounds":{…},"workArea":{…},"scaleFactor":1}, …]' simuliert mehrere Monitore
+if (process.env.DESKPET_FAKE_DISPLAYS) {
+  app.whenReady().then(() => {
+    const fake = JSON.parse(process.env.DESKPET_FAKE_DISPLAYS);
+    screen.getAllDisplays = () => fake;
+    screen.getPrimaryDisplay = () => fake[0];
+  });
+}
 let sensors = null;
 let updater = null;
 let gameDetect = null;
@@ -40,6 +51,7 @@ const DEFAULTS = {
   sysReports: true,
   romance: true,
   dojo: {},
+  allScreens: true,         // Figuren laufen über alle Monitore
 };
 
 let overlay = null;
@@ -47,6 +59,10 @@ let tray = null;
 let scanner = null;
 let settings = { ...DEFAULTS };
 let ignoring = true;
+const views = new Map();       // weitere Monitore: Display-ID → Fenster
+const viewIgnore = new Map();
+let viewFullscreen = new Set(); // Monitore mit Vollbildprogramm
+let locked = false, lastReshow = 0, stallCount = 0;
 let mouseRearms = 0, mouseAck = 0;
 let lastWindows = null;
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
@@ -67,9 +83,20 @@ function targetDisplay() {
   return all[settings.display] || screen.getPrimaryDisplay();
 }
 
+function activeDisplays() {
+  const home = targetDisplay();
+  return settings.allScreens ? screen.getAllDisplays() : [home];
+}
+
 function layoutPayload() {
   const d = targetDisplay();
+  const hb = d.bounds;
   return {
+    screens: activeDisplays().map((x) => ({
+      id: String(x.id), home: x.id === d.id, scale: x.scaleFactor,
+      x: x.bounds.x - hb.x, y: x.bounds.y - hb.y, w: x.bounds.width, h: x.bounds.height,
+      wa: { x: x.workArea.x - hb.x, y: x.workArea.y - hb.y, w: x.workArea.width, h: x.workArea.height },
+    })),
     width: d.bounds.width,
     height: d.bounds.height,
     workArea: { x: d.workArea.x - d.bounds.x, y: d.workArea.y - d.bounds.y, w: d.workArea.width, h: d.workArea.height },
@@ -83,7 +110,47 @@ function placeOverlay() {
   if (!overlay) return;
   const d = targetDisplay();
   overlay.setBounds(d.bounds);
+  for (const [id, win] of views) { const dd = screen.getAllDisplays().find((x) => String(x.id) === id); if (dd && !win.isDestroyed()) win.setBounds(dd.bounds); }
   overlay.webContents.send('layout', layoutPayload());
+}
+
+// ---------------------------------------------------------------- Fenster je Monitor
+const allWins = () => [overlay, ...views.values()].filter((w) => w && !w.isDestroyed());
+function viewShouldShow(id) { return overlay && overlay.isVisible() && !(settings.hideFullscreen && viewFullscreen.has(id)); }
+function showAll() {
+  if (!overlay) return;
+  overlay.showInactive(); overlay.setAlwaysOnTop(true, 'screen-saver');
+  for (const [id, w] of views) if (!w.isDestroyed() && viewShouldShow(id)) { w.showInactive(); w.setAlwaysOnTop(true, 'screen-saver'); }
+}
+function hideAll() { for (const w of allWins()) if (w.isVisible()) w.hide(); }
+
+function setupViewWindows() {
+  overlay.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    if (url === 'about:blank' && String(frameName).startsWith('screen-')) {
+      return { action: 'allow', overrideBrowserWindowOptions: {
+        show: false, transparent: true, frame: false, resizable: false, movable: false, minimizable: false, maximizable: false,
+        fullscreenable: false, skipTaskbar: true, hasShadow: false, focusable: false, alwaysOnTop: true, backgroundColor: '#00000000',
+        title: 'Shadepi Deskpet', webPreferences: { backgroundThrottling: false, contextIsolation: true, nodeIntegration: false },
+      } };
+    }
+    if (/^https?:/.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  overlay.webContents.on('did-create-window', (win, details) => {
+    const id = String(details.frameName || '').slice(7);
+    const d = screen.getAllDisplays().find((x) => String(x.id) === id);
+    if (!d) { win.close(); return; }
+    views.set(id, win);
+    viewIgnore.set(id, true);
+    win.setIgnoreMouseEvents(true, { forward: true });
+    win.setAlwaysOnTop(true, 'screen-saver');
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    win.setBounds(d.bounds);
+    // Bei unterschiedlicher Skalierung stimmt die Größe erst nach dem zweiten Setzen
+    setTimeout(() => { if (!win.isDestroyed()) { win.setBounds(d.bounds); if (viewShouldShow(id)) win.showInactive(); } }, 120);
+    win.on('closed', () => { views.delete(id); viewIgnore.delete(id); });
+    log(`Monitorfenster ${id}: ${d.bounds.width}×${d.bounds.height} @ ${d.bounds.x},${d.bounds.y} (Skalierung ${d.scaleFactor})`);
+  });
 }
 
 function createOverlay() {
@@ -116,6 +183,7 @@ function createOverlay() {
   // Nach dem Aus-/Einblenden (z. B. Spielmodus) ist die Maus-Weiterleitung unter Windows
   // oft tot: Das Overlay bekommt keine Mausbewegungen mehr und das Menü reagiert nicht.
   overlay.on('show', () => setTimeout(() => rearmMouse('wieder sichtbar'), 150));
+  setupViewWindows();
   overlay.loadFile(path.join(__dirname, '..', 'app', 'index.html'));
   overlay.webContents.on('did-finish-load', () => {
     overlay.webContents.send('layout', layoutPayload());
@@ -123,12 +191,18 @@ function createOverlay() {
     if (lastWindows) sendWindows(lastWindows);
   });
   // Manche Programme drängeln sich nach vorn; regelmäßig wieder nach oben holen.
-  setInterval(() => { if (overlay && !overlay.isDestroyed() && overlay.isVisible() && !gaming.active) { overlay.setAlwaysOnTop(true, 'screen-saver'); overlay.moveTop(); } }, 4000);
+  setInterval(() => { if (!gaming.active) for (const w of allWins()) if (w.isVisible()) { w.setAlwaysOnTop(true, 'screen-saver'); w.moveTop(); } }, 4000);
 }
 
 function sendWindows(raw) {
   if (!overlay || overlay.isDestroyed() || gamePaused()) return;
-  const data = toOverlaySpace(raw, targetDisplay());
+  const data = toOverlaySpace(raw, targetDisplay(), activeDisplays());
+  // Monitore mit Vollbildprogramm (Video, Spiel im Fenster …) ausblenden
+  const fs2 = new Set(data.fullscreenScreens);
+  if ([...fs2].join() !== [...viewFullscreen].join()) {
+    viewFullscreen = fs2;
+    for (const [id, w] of views) { if (w.isDestroyed()) continue; if (viewShouldShow(id)) { if (!w.isVisible()) w.showInactive(); } else if (w.isVisible()) w.hide(); }
+  }
   overlay.webContents.send('windows', data);
 }
 
@@ -136,12 +210,20 @@ function sendWindows(raw) {
 // Weiterleitung nur beim Wechsel aus/an – daher erst ausschalten, dann wieder an.
 function rearmMouse(why) {
   if (!overlay || overlay.isDestroyed() || !overlay.isVisible()) return;
-  overlay.setIgnoreMouseEvents(false);
-  overlay.setIgnoreMouseEvents(true, { forward: true });
+  for (const w of allWins()) { w.setIgnoreMouseEvents(false); w.setIgnoreMouseEvents(true, { forward: true }); }
   ignoring = true;
+  for (const k of viewIgnore.keys()) viewIgnore.set(k, true);
   mouseRearms++;
   send('mouse-reset', cursorInOverlay());
   log(`Maus-Weiterleitung neu eingerichtet (${why})`);
+}
+
+// Nach Entsperren/Standby: Zeichnen und Maus wieder anstoßen
+function wake(why) {
+  if (!overlay || overlay.isDestroyed()) return;
+  for (const w of allWins()) { try { w.webContents.invalidate(); } catch (_) {} }
+  send('wake', why);
+  rearmMouse(why);
 }
 
 function send(channel, payload) {
@@ -158,7 +240,7 @@ function setSetting(key, value) {
   settings[key] = value;
   saveSettings();
   send('settings', settings);
-  if (key === 'display') placeOverlay();
+  if (key === 'display' || key === 'allScreens') placeOverlay();
   if (key.startsWith('game')) setTimeout(checkGames, 50);
   buildTray();
 }
@@ -193,7 +275,8 @@ function buildTray() {
     { label: 'Einstellungen', submenu: [
       check('Kino-Effekte', 'cinematic'), check('Bildschirmschäden (Löcher, Luke)', 'screenDamage'), check('Fenster beklettern', 'climbWindows'),
       check('Bei Spielen pausieren', 'gamePause'), check('Systemberichte (Raven)', 'sysReports'), check('Romantische Momente', 'romance'), check('Sprechblasen', 'bubbles'), check('Kampfmusik', 'music'), check('Bei Vollbild ausblenden', 'hideFullscreen'), check('Seitenleiste anzeigen', 'dock'),
-      { label: 'Bildschirm', submenu: displays.map((d, i) => radio(`Bildschirm ${i + 1} (${d.bounds.width}×${d.bounds.height})`, 'display', i)) },
+      ...(displays.length > 1 ? [check('Auf allen Monitoren laufen', 'allScreens')] : []),
+      { label: displays.length > 1 ? 'Heimbildschirm' : 'Bildschirm', submenu: displays.map((d, i) => radio(`Bildschirm ${i + 1} (${d.bounds.width}×${d.bounds.height})`, 'display', i)) },
     ] },
     { type: 'separator' },
     check('Ruhemodus', 'paused'),
@@ -216,14 +299,14 @@ function setAutostart(on) { try { app.setLoginItemSettings({ openAtLogin: !!on, 
 
 function openDojo() {
   if (!overlay) return;
-  if (!overlay.isVisible()) { userHidden = false; if (gaming.active) gameOverride = true; overlay.showInactive(); buildTray(); }
+  if (!overlay.isVisible()) { userHidden = false; if (gaming.active) gameOverride = true; showAll(); buildTray(); }
   send('dojo');
 }
 
 function toggleVisible() {
   if (!overlay) return;
-  if (overlay.isVisible()) { overlay.hide(); userHidden = true; }
-  else { userHidden = false; if (gaming.active) gameOverride = true; overlay.showInactive(); }
+  if (overlay.isVisible()) { hideAll(); userHidden = true; }
+  else { userHidden = false; if (gaming.active) gameOverride = true; showAll(); }
   buildTray();
 }
 
@@ -231,8 +314,8 @@ function toggleVisible() {
 function gamePaused() { return gaming.active && !gameOverride; }
 function applyGaming() {
   if (!overlay || overlay.isDestroyed()) return;
-  if (gamePaused()) { if (overlay.isVisible()) overlay.hide(); }
-  else if (!userHidden && !overlay.isVisible()) { overlay.showInactive(); overlay.setAlwaysOnTop(true, 'screen-saver'); }
+  if (gamePaused()) hideAll();
+  else if (!userHidden && !overlay.isVisible()) showAll();
   send('gaming', { active: gamePaused(), name: gaming.name, exe: gaming.exe, reason: gaming.reason, minutes: gaming.since ? Math.round((Date.now() - gaming.since) / 60000) : 0 });
   buildTray();
 }
@@ -305,23 +388,55 @@ if (!app.requestSingleInstanceLock()) {
       setTimeout(() => { gaming = { active: true, name: 'Selbsttest', exe: 'selftest.exe', reason: 'test', since: Date.now() }; applyGaming(); }, 2000);
       setTimeout(() => { gaming = { ...gaming, active: false }; applyGaming(); }, 3200);
     }
-    if (st) setTimeout(() => {
-      const out = { ...scanner.status(), surfacesRaw: lastWindows ? lastWindows.w.length : 0, games: !!gameDetect, gameInfo: lastGameInfo, visible: overlay.isVisible(), mouseRearms, mouseAck };
+    if (st && process.env.DESKPET_TEST_JS) setTimeout(() => overlay.webContents.executeJavaScript(process.env.DESKPET_TEST_JS).catch((e) => log('Test-JS: ' + e.message)), 2500);
+    if (st) setTimeout(async () => {
+      const out = { ...scanner.status(), surfacesRaw: lastWindows ? lastWindows.w.length : 0, games: !!gameDetect, gameInfo: lastGameInfo, visible: overlay.isVisible(), mouseRearms, mouseAck, displays: screen.getAllDisplays().length, views: views.size, viewsVisible: [...views.values()].filter((w) => w.isVisible()).length, stallCount };
+      try {
+        out.renderer = await overlay.webContents.executeJavaScript(`(() => { const W = PET.world, T = W.terrain; return { screens: T.screens.length, floors: T.floors().length, views: W.views ? W.views.list.length : -1, minX: T.minX, maxX: T.maxX, frames: Math.round(W.time * 10) / 10 }; })()`);
+        if (process.env.DESKPET_SHOTS) {
+          let i = 0;
+          for (const w of allWins()) { const img = await w.webContents.capturePage(); fs.writeFileSync(path.join(process.env.DESKPET_SHOTS, `win${i++}.png`), img.toPNG()); }
+        }
+      } catch (e) { out.rendererError = e.message; }
       try { fs.writeFileSync(st.slice(11), JSON.stringify(out)); } catch (_) {}
       app.exit(0);
     }, 6000);
 
     screen.on('display-metrics-changed', placeOverlay);
     // Nach Standby/Sperrbildschirm verliert Windows ebenfalls gern die Maus-Weiterleitung
-    for (const ev of ['resume', 'unlock-screen']) powerMonitor.on(ev, () => setTimeout(() => rearmMouse(ev), 800));
+    powerMonitor.on('lock-screen', () => { locked = true; log('Bildschirm gesperrt'); });
+    for (const ev of ['resume', 'unlock-screen']) powerMonitor.on(ev, () => {
+      locked = false;
+      log(ev === 'resume' ? 'Aus dem Standby zurück' : 'Bildschirm entsperrt');
+      setTimeout(() => wake(ev), 800);
+    });
     screen.on('display-added', () => { placeOverlay(); buildTray(); });
     screen.on('display-removed', () => { placeOverlay(); buildTray(); });
   });
 
-  ipcMain.on('set-ignore', (_e, ignore) => {
-    if (!overlay || ignore === ignoring) return;
-    ignoring = ignore;
-    overlay.setIgnoreMouseEvents(ignore, { forward: true });
+  ipcMain.on('set-ignore', (_e, msg) => {
+    const { ignore, key } = typeof msg === 'object' ? msg : { ignore: msg, key: 'home' };
+    if (!overlay) return;
+    if (key === 'home' || !key) {
+      if (ignore === ignoring) return;
+      ignoring = ignore;
+      overlay.setIgnoreMouseEvents(ignore, { forward: true });
+      return;
+    }
+    const w = views.get(String(key));
+    if (!w || w.isDestroyed() || viewIgnore.get(String(key)) === ignore) return;
+    viewIgnore.set(String(key), ignore);
+    w.setIgnoreMouseEvents(ignore, { forward: true });
+  });
+  // Renderer meldet: seit Sekunden kein Bild mehr gezeichnet → Fenster neu einblenden
+  ipcMain.on('stalled', (_e, info) => {
+    stallCount++;
+    if (locked || gamePaused() || userHidden || !overlay || !overlay.isVisible()) return;
+    if (Date.now() - lastReshow < 15000) return;
+    lastReshow = Date.now();
+    log(`Animation stand still (${info && info.secs}s, Sichtbarkeit ${info && info.vis}) – Overlay wird neu eingeblendet`);
+    hideAll();
+    setTimeout(() => { showAll(); for (const w of allWins()) w.webContents.invalidate(); }, 150);
   });
   ipcMain.on('set-setting', (_e, { key, value }) => { if (key in DEFAULTS) setSetting(key, value); });
   ipcMain.on('get-cursor', (e) => { e.returnValue = cursorInOverlay(); });

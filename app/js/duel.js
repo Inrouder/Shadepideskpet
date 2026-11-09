@@ -345,6 +345,9 @@ class Duel {
     T.landing = () => null;
     try { ent.physics(dt); } finally { T.landing = orig; }
     if (ent.ground && ent.wid !== 'floor') ent.land(T.surfaces[0], 0);
+    // Gekämpft wird nur auf dem Heimbildschirm
+    const lo = T.floorX1 + ent.w / 2, hi = T.floorX2 - ent.w / 2;
+    if (ent.x < lo || ent.x > hi) { ent.x = clamp(ent.x, lo, hi); ent.vx = 0; }
   }
   // -------------------------------------------- Spielerfigur
   playerControl(inp, dt) {
@@ -905,7 +908,7 @@ class Dojo {
     if (W.ui && W.ui.isOpen) W.ui.close();
     W.director.scripts = [];
     W.clearAll();
-    for (const h of W.heroes) if (!h.absent && !h.dragged) h.cancelTask();
+    for (const h of W.heroes) if (!h.absent && !h.dragged) { h.cancelTask(); h.warpHome(); }
     const sh = W.hero('shadepi'), T = W.terrain, u = W.u;
     if (sh.absent || sh.alpha < 1) {
       sh.absent = false; sh.alpha = 1; sh.ko = false;

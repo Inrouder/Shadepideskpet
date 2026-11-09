@@ -310,18 +310,21 @@ class Bubbles {
       const w = Math.max(...lines.map((l) => ctx.measureText(l).width), ctx.measureText(b.name).width * 0.75) + 30;
       const h = lines.length * 19 + 24;
       const headY = b.who.y - (b.who.bubbleY || b.who.h || 90);
-      let x = clamp(b.who.x - w / 2, 6, this.world.terrain.W - w - 6);
+      // Am Bildschirm des Sprechers ausrichten (mehrere Monitore)
+      const sc = this.world.terrain.screenAt(b.who.x, b.who.y - 20);
+      const L = sc.x + 6, R = sc.x + sc.w - 6;
+      let x = clamp(b.who.x - w / 2, L, R - w);
       let y = headY - h - 16;
       for (const p of placed) if (x < p.x + p.w && x + w > p.x && y < p.y + p.h && y + h > p.y) y = p.y - h - 6;
       // Hologramme/Karten nicht verdecken: seitlich ausweichen
       for (const r of avoid) {
         if (x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y) {
           const left = r.x - w - 8, right = r.x + r.w + 8;
-          x = (b.who.x < r.x + r.w / 2 && left > 6) || right + w > this.world.terrain.W - 6 ? left : right;
-          x = clamp(x, 6, this.world.terrain.W - w - 6);
+          x = (b.who.x < r.x + r.w / 2 && left > L) || right + w > R ? left : right;
+          x = clamp(x, L, R - w);
         }
       }
-      if (y < 6) y = headY + 40;
+      if (y < sc.y + 6) y = headY + 40;
       placed.push({ x, y, w, h });
       const appear = Math.min(1, b.t * 8), vanish = Math.min(1, (b.life - b.t) * 4);
       ctx.globalAlpha = Math.min(appear, vanish);

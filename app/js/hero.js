@@ -81,19 +81,35 @@ class Hero extends Entity {
   }
 
   *walkTo(x, run = false, tol = 6, timeout = 14) {
-    let e = 0;
+    let e = 0, stuck = 0, lastX = this.x;
     while (e < timeout) {
       e += this.world.dt;
-      if (!this.ground) { this.walkVx = 0; yield; continue; }
+      if (!this.ground) { this.walkVx = 0; stuck = 0; yield; continue; }
       const dx = x - this.x;
       if (Math.abs(dx) <= tol) break;
       const s = this.ground;
-      if ((dx < 0 && this.x <= s.x1 + 1) || (dx > 0 && this.x >= s.x2 - 1)) break;
+      // Am Rand: Auf dem Boden hält die Physik die Figur eine halbe Breite vor der Kante an.
+      // Ohne diese Grenze lief sie bis zum Zeitlimit gegen den Bildschirmrand.
+      const pad = this.wid === 'floor' && !this.floorContinues(s, sign(dx)) ? this.w / 2 + 2 : 1;
+      if ((dx < 0 && this.x <= s.x1 + pad) || (dx > 0 && this.x >= s.x2 - pad)) break;
+      // Kommt nicht vom Fleck (Wand, Nachbarmonitor höher …)
+      if (Math.abs(this.x - lastX) < 0.3 * this.u) { stuck += this.world.dt; if (stuck > 0.45) break; } else stuck = 0;
+      lastX = this.x;
       this.facing = sign(dx);
       this.walkVx = sign(dx) * (run ? this.def.run : this.def.walk) * this.u * (this.buffs.overclock > 0 ? 1.2 : 1);
       yield;
     }
     this.walkVx = 0;
+  }
+
+  // Geht der Boden hinter der Kante auf einem anderen Monitor tiefer weiter?
+  floorContinues(s, dir) {
+    const T = this.world.terrain;
+    if (!T.multi) return false;
+    const edge = dir > 0 ? s.x2 : s.x1;
+    const [lo, hi] = T.xRangeAt(this.x, s.y - 2);
+    if (edge + dir * this.w >= hi || edge + dir * this.w <= lo) return false;
+    return T.floorAt(edge + dir * this.w).y > s.y + 4;
   }
 
   // Ballistischer Sprung auf einen Punkt
@@ -108,6 +124,7 @@ class Hero extends Entity {
     if (!opts.quick) { this.forcePose = 'crouch'; yield* this.wait(0.09); }
     const fromWid = this.wid;
     this.leaveGround();
+    this.leaping = true;
     if (ty > this.y + 4) this.ignoreSurface = fromWid;
     this.vx = (tx - this.x) / T; this.vy = vy0;
     this.forcePose = 'jump'; this.animT = 0;
@@ -129,7 +146,7 @@ class Hero extends Entity {
     const W = this.world, u = this.u;
     const sx = this.x, sy = this.y;
     this.facing = sign(tx - sx) || this.facing;
-    this.leaveGround(); this.gravity = 0; this.vx = this.vy = 0;
+    this.leaveGround(); this.gravity = 0; this.vx = this.vy = 0; this.leaping = true;
     try {
       if (this.name === 'shadepi') {
         this.forcePose = 'pose'; this.poseRow = 0;
@@ -183,7 +200,7 @@ class Hero extends Entity {
     yield* this.walkTo(edge, false, 5);
     const dir = edge < (s.x1 + s.x2) / 2 ? -1 : 1;
     const below = this.world.terrain.below(this.x + dir * 50 * this.u, this.y + 5);
-    yield* this.jumpTo(clamp(this.x + dir * 60 * this.u, 20, this.world.terrain.W - 20), below.y, { arc: 25, quick: true });
+    yield* this.jumpTo(clamp(this.x + dir * 60 * this.u, this.world.terrain.minX + 20, this.world.terrain.maxX - 20), below.y, { arc: 25, quick: true });
   }
 
   // Landepunkt auf der Oberkante neben der Kletterseite
@@ -336,10 +353,12 @@ class Hero extends Entity {
       const live = T.surfaceOf(target.wid, (target.x1 + target.x2) / 2, 30) || T.surfaces.find((s) => s.wid === target.wid);
       if (!live) return false;
       target = live;
-      if (this.wid === target.wid) return true;
+      if (this.onSurface(target)) return true;
       const me = this.ground;
-      const landX = clamp(this.x, target.x1 + 26 * u, target.x2 - 26 * u);
-      const launchX = clamp(landX, me.x1 + 8, me.x2 - 8);
+      const crossFloor = target.wid === 'floor' && me.wid === 'floor';
+      const inset = crossFloor ? 70 * u : 26 * u;
+      const landX = clamp(this.x, target.x1 + inset, target.x2 - inset);
+      const launchX = clamp(landX, me.x1 + (crossFloor ? this.w / 2 + 6 : 8), me.x2 - (crossFloor ? this.w / 2 + 6 : 8));
       const dx = Math.abs(landX - launchX);
       const rise = this.y - target.y;
       if (dx < 320 * u && rise < this.jumpMax && rise > -900) {
@@ -364,7 +383,58 @@ class Hero extends Entity {
       }
       yield* this.dropDown();
     }
-    return this.wid === target.wid;
+    return this.onSurface(target);
+  }
+
+  // Steht die Figur auf dieser Fläche? (Böden mehrerer Monitore teilen sich die Kennung 'floor')
+  onSurface(t) { return !!this.ground && this.wid === t.wid && (t.wid !== 'floor' || this.ground === t || this.ground.id === t.id); }
+
+  // ======================================================== Monitore
+  // Zu einem anderen Bildschirm laufen (springen, fallen, Schattensprung/Greifhaken)
+  *roam() {
+    const T = this.world.terrain, u = this.u;
+    const here = T.screenAt(this.x, this.y - 10);
+    const others = T.liveScreens().filter((sc) => sc !== here);
+    if (!others.length) return;
+    const dest = !here.home && chance(0.6) ? T.screens[0] : pick(others);
+    if (chance(0.4)) this.say(dest.home ? 'roamHome' : 'roam');
+    const tx = clamp(rnd(dest.x + dest.w * 0.15, dest.x + dest.w * 0.85), dest.fx1 + 40 * u, dest.fx2 - 40 * u);
+    const wins = T.windowSurfaces().filter((s) => T.screenAt((s.x1 + s.x2) / 2, s.y) === dest && s.x2 - s.x1 > 110 * u);
+    if (wins.length && this.world.settings.climbWindows && chance(0.35)) { yield* this.climbSomewhere(pick(wins)); return; }
+    if (this.wid !== 'floor') yield* this.dropDown();
+    const fl = T.floorAt(tx);
+    for (let hop = 0; hop < 4 && this.ground && !this.onSurface(fl); hop++) {
+      // Benachbarten Boden in Richtung Ziel ansteuern
+      const dir = sign(tx - this.x);
+      const next = T.floors().filter((f) => f !== this.ground && (dir > 0 ? f.x1 >= this.ground.x2 - 4 : f.x2 <= this.ground.x1 + 4))
+        .sort((a, b) => Math.abs((a.x1 + a.x2) / 2 - this.x) - Math.abs((b.x1 + b.x2) / 2 - this.x))[0];
+      if (!next) break;
+      if (next.y > this.y + 4) yield* this.walkTo(dir > 0 ? next.x1 + 60 * u : next.x2 - 60 * u, true, 8);
+      else yield* this.goToSurface(next);
+      yield* this.waitGround();
+    }
+    if (this.onSurface(fl)) yield* this.walkTo(tx, chance(0.3));
+    yield* this.wait(rnd(0.6, 1.6));
+  }
+
+  // Für Szenen, Erinnerungen und Kämpfe: zurück auf den Heimbildschirm (Schattensprung bzw. Greifhaken)
+  *comeHome() {
+    if (!this.warpHome()) return;
+    yield* this.wait(0.15);
+  }
+  warpHome() {
+    const W = this.world, T = W.terrain, u = this.u;
+    if (this.absent || this.dragged || T.isHome(this.x, this.y - 20)) return false;
+    const fromLeft = this.x < T.W / 2;
+    W.fx.smokePuff(this.x, this.y - 30 * u, 0.6 * u, 0.8);
+    Sound.play(this.name === 'raven' ? 'calib_tick' : 'slash', 0.35, 0.7);
+    this.leaveGround();
+    this.x = clamp(fromLeft ? T.floorX1 + 70 * u : T.floorX2 - 70 * u, 40, T.W - 40);
+    this.y = T.floorY; this.vx = this.vy = 0;
+    this.land(T.surfaces[0], 0);
+    this.facing = fromLeft ? 1 : -1;
+    W.fx.smokePuff(this.x, this.y - 30 * u, 0.6 * u, 0.8);
+    return true;
   }
 
   // ======================================================== Kampf
@@ -458,7 +528,7 @@ class Hero extends Entity {
   *jumpSlash(t) {
     const W = this.world, u = this.u;
     let struck = false;
-    const tx = clamp(t.x - sign(t.x - this.x) * 10 * u, 20, W.terrain.W - 20);
+    const tx = clamp(t.x - sign(t.x - this.x) * 10 * u, W.terrain.minX + 20, W.terrain.maxX - 20);
     const ty = Math.min(this.y, t.y + 40 * u);
     yield* this.jumpTo(tx, this.y, {
       arc: Math.max(40, (this.y - ty) / u),
@@ -591,6 +661,7 @@ class Hero extends Entity {
   // Kampfschleifen ---------------------------------------------
   *fight() {
     const W = this.world, u = this.u;
+    if (W.enemies.some((e) => !e.dead && W.terrain.isHome(e.x, e.y - 10))) yield* this.comeHome();
     if (this.name === 'shadepi' ? chance(0.6) : chance(0.6)) this.say(pick(['fightStart', W.fightKind || 'fightStart']));
     let idle = 0;
     while (true) {
@@ -629,7 +700,7 @@ class Hero extends Entity {
     // Bodengegner: auf dieselbe Fläche
     if (t.ground && this.wid !== t.wid) {
       if (t.y > this.y) {
-        const tx = clamp(t.x - sign(dx) * 50 * u, 20, W.terrain.W - 20);
+        const tx = clamp(t.x - sign(dx) * 50 * u, W.terrain.minX + 20, W.terrain.maxX - 20);
         yield* this.jumpTo(tx, t.y, { onAir: () => { this.forcePose = this.vy > 0 ? 'pose' : 'jump'; this.poseRow = 1; } });
         if (dist(this.x, this.y, t.x, t.y) < 110 * u) { W.cinema.shake(5, 0.2); W.fx.dust(this.x, this.y, 8, u); this.meleeHit(90 * u, 4, { knock: 320, up: 200 }); }
         return;
@@ -714,6 +785,7 @@ class Hero extends Entity {
       ['toy', toys.length ? 3 : 0],
       ['nap', (onWin ? 0.7 : 0.25) * (isNight() ? 4 : 1)],
       ['hackWin', raven && onWin ? 0.8 : 0],
+      ['roam', T.multi ? (T.isHome(this.x, this.y - 10) ? 1.8 : 0.9) : 0],
     ]);
     switch (choice) {
       case 'wander': this.setTask('wander', this.wander(), 0.5); break;
@@ -725,6 +797,7 @@ class Hero extends Entity {
       case 'nap': this.setTask('nap', this.nap(), 0.5); break;
       case 'rest': this.setTask('rest', raven || hasClimbArt(this.name) ? this.sit() : this.guard(), 0.5); break;
       case 'hackWin': this.setTask('hackWin', this.hackWindow(), 0.6); break;
+      case 'roam': this.setTask('roam', this.roam(), 0.7); break;
     }
   }
 
@@ -1076,6 +1149,7 @@ class Hero extends Entity {
 
   // Erinnerung überbringen ---------------------------------------
   *remind(rem, R) {
+    yield* this.comeHome();
     const W = this.world, u = this.u;
     yield* this.waitGround(2);
     if (W.mouse.active && this.ground) {

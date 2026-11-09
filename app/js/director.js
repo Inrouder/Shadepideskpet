@@ -148,6 +148,8 @@ class Director {
     const W = this.world, T = W.terrain;
     if (id === 'dojo') { if (W.dojo) W.dojo.open(); return; }
     if (W.duel) return;
+    // Szenen spielen auf dem Heimbildschirm: wer drüben unterwegs ist, kommt per Schattensprung zurück
+    for (const h of W.heroes) if (!h.absent && !h.dragged && !W.terrain.isHome(h.x, h.y - 20)) { if (h.task && h.taskPrio < 3) h.cancelTask(); h.warpHome(); }
     this.lastEvent = id;
     const present = W.presentHeroes();
     const sh = W.hero('shadepi'), ra = W.hero('raven');

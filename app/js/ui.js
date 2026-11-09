@@ -158,6 +158,7 @@ class UI {
     toggle('Kino-Effekte', 'cinematic');
     toggle('Bildschirmschäden', 'screenDamage');
     toggle('Fenster beklettern', 'climbWindows');
+    if (W.layoutDisplays > 1 || W.terrain.screens.length > 1) toggle('Auf allen Monitoren laufen', 'allScreens');
     toggle('Sprechblasen', 'bubbles');
     toggle('Kampfmusik', 'music');
     toggle('Bei Vollbild ausblenden', 'hideFullscreen');

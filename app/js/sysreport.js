@@ -65,6 +65,7 @@ class SysReport {
     const hs = W.presentHeroes().filter((h) => !h.ko);
     const ra = hs.find((h) => h.name === 'raven');
     if (!this.data) { const h = ra || hs[0]; if (h) h.talk(h.name === 'raven' ? 'Moment, ich verbinde mich noch mit den Sensoren…' : 'Noch keine Werte.', true); return; }
+    for (const h of hs) h.warpHome();
     if (ra) ra.setTask('sysreport', this.ravenReport(ra, alert), 2.5);
     else if (hs[0]) hs[0].setTask('sysreport', this.shadepiReport(hs[0], alert), 2.5);
   }

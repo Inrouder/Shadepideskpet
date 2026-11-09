@@ -84,25 +84,31 @@ class WindowScanner {
 }
 
 // Rohdaten (physische Pixel) -> DIP relativ zum Overlay-Bildschirm.
-function toOverlaySpace(raw, display) {
+// Fensterliste in Overlay-Koordinaten umrechnen: relativ zur linken oberen Ecke des
+// Heimbildschirms (DIP). displays = alle Bildschirme, auf denen Figuren laufen dürfen.
+function toOverlaySpace(raw, display, displays = [display]) {
   const b = display.bounds;
   const out = [];
   let fullscreen = false;
+  const fullscreenScreens = [];
+  const rel = displays.map((d) => ({ id: String(d.id), x: d.bounds.x - b.x, y: d.bounds.y - b.y, w: d.bounds.width, h: d.bounds.height, home: d.id === display.id }));
+  const coversScreen = (win, sc) => win.x <= sc.x + 1 && win.y <= sc.y + 1 && win.x + win.w >= sc.x + sc.w - 1 && win.y + win.h >= sc.y + sc.h - 1;
   raw.w.forEach((w, z) => {
     let r = { x: w.x, y: w.y, width: w.w, height: w.h };
     try { if (screen.screenToDipRect) r = screen.screenToDipRect(null, r); } catch (_) {}
     const win = { id: String(w.id), x: r.x - b.x, y: r.y - b.y, w: r.width, h: r.height, z, max: !!w.max, title: w.t || '' };
-    const covers = win.x <= 1 && win.y <= 1 && win.w >= b.width - 2 && win.h >= b.height - 2;
+    const isFg = String(w.id) === String(raw.fg);
+    const covered = rel.filter((sc) => coversScreen(win, sc));
     // Unsichtbare Vollbild-Overlays anderer Programme (immer im Vordergrund, nicht aktiv) würden alles verdecken
-    if (covers && w.top && String(w.id) !== String(raw.fg)) return;
-    if (String(w.id) === String(raw.fg)) {
+    if (covered.length && w.top && !isFg) return;
+    if (isFg) {
       win.fg = true;
-      if (win.x <= 1 && win.y <= 1 && win.w >= b.width - 2 && win.h >= b.height - 2) fullscreen = true;
+      for (const sc of covered) { if (sc.home) fullscreen = true; else fullscreenScreens.push(sc.id); }
     }
-    // Nur Fenster, die diesen Bildschirm berühren.
-    if (win.x + win.w > 0 && win.y + win.h > 0 && win.x < b.width && win.y < b.height) out.push(win);
+    // Nur Fenster, die einen der Bildschirme berühren.
+    if (rel.some((sc) => win.x + win.w > sc.x && win.y + win.h > sc.y && win.x < sc.x + sc.w && win.y < sc.y + sc.h)) out.push(win);
   });
-  return { windows: out, fullscreen };
+  return { windows: out, fullscreen, fullscreenScreens };
 }
 
 module.exports = { WindowScanner, toOverlaySpace };

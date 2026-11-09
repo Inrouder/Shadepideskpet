@@ -21,6 +21,7 @@ Ein Desktop-Maskottchen im Stil von **[ShadepiRPG](https://github.com/Inrouder/S
   - **Raven:** Impulspistole (auch aus der Hocke), Kettenblitz gegen Viren, **Drohnen-Hack** (die Drohne kämpft dann für sie), Störsignal gegen schwere Gegner.
   - **Doppelschlag:** Raven blockiert einen schweren Gegner, Shadepi vollendet.
   - Werden die Helden besiegt, gehen sie nur kurz in die Knie und regenerieren (Heiligtum bzw. Neustart).
+- **Mehrere Monitore:** Shadepi und Raven laufen über **alle Bildschirme**. Sie wechseln über die Taskleiste hinüber, fallen auf einen tieferen Nachbarboden oder springen (Schattensprung/Greifhaken) auf einen höheren, klettern dort an Fenstern hoch, und du kannst sie mit der Maus von einem Monitor auf den anderen ziehen. Szenen, Kämpfe, Erinnerungen und das Dojo spielen auf dem **Heimbildschirm** – wer gerade drüben ist, kommt per Schattensprung zurück. Läuft auf einem Monitor ein Vollbildprogramm, bleibt er frei.
 - **Eigenleben:** Shadepi **trainiert** selbstständig, schlägt dabei manchmal versehentlich ein **Loch in den Bildschirm** und flickt es danach mit **Klebeband**. Raven öffnet ab und zu eine **Wartungsluke** im Bildschirm, scannt, löst die Schrauben und **verkabelt die Leitungen neu**, ARToS meldet „Signal 100 Prozent“. Dazu kommen Sparring (Shadepi pariert Ravens Schüsse), Gespräche zwischen den beiden, Ballspiel, Nickerchen und Kommentare zu deinen Fenstertiteln.
 
 ## Wecker, Timer und Erinnerungen
@@ -112,7 +113,7 @@ Neue Versionen entstehen automatisch: Wird `version` in `package.json` erhöht u
 - **Figuren:** Modus wählen, Partner rufen, Schichtwechsel.
 - **System:** Größe, Lautstärke, Aktivität (Ruhig/Normal/Chaos), Kino-Effekte, Bildschirmschäden, Fensterklettern, Sprechblasen, Kampfmusik, bei Vollbild ausblenden, Ruhemodus, Beenden.
 
-Einstellungen werden gespeichert. Über das Tray-Menü lässt sich außerdem **„Mit Windows starten“** und bei mehreren Monitoren der **Bildschirm** wählen.
+Einstellungen werden gespeichert. Über das Tray-Menü lässt sich außerdem **„Mit Windows starten“** einschalten. Bei mehreren Monitoren gibt es dort **„Auf allen Monitoren laufen“** (auch im Menü unter System) und die Wahl des **Heimbildschirms**.
 
 ## Installation (Windows)
 
@@ -133,7 +134,7 @@ Nützliche Vorschau-Parameter: `?mode=beide&event=training`, `event=luke`, `even
 
 ## Technik
 
-- **Electron**-Overlay: randlos, transparent, immer im Vordergrund, über den ganzen Bildschirm. Klick-Durchlass per `setIgnoreMouseEvents(…, { forward: true })`; nur über Figuren, Gegenständen und dem Menü fängt das Overlay die Maus ab.
+- **Electron**-Overlay: randlos, transparent, immer im Vordergrund, über den ganzen Bildschirm. Für jeden weiteren Monitor öffnet das Overlay per `window.open` ein eigenes Fenster mit passender Skalierung; die Welt bleibt eine einzige und wird in jedes Fenster mit dessen Versatz gezeichnet (`views.js`). Klick-Durchlass per `setIgnoreMouseEvents(…, { forward: true })`; nur über Figuren, Gegenständen und dem Menü fängt das Overlay die Maus ab.
 - **Fenstererkennung** (`main/winscan.ps1`): ein kleiner PowerShell-/C#-Helfer liest per `EnumWindows` + DWM-Rahmen alle sichtbaren Fenster in Z-Reihenfolge (DPI-bewusst) und meldet Änderungen als JSON. Daraus berechnet `app/js/terrain.js` begehbare Oberkanten und kletterbare Seiten. Unter macOS/Linux laufen die Figuren nur auf dem Bildschirmboden.
 - **Spiel-Engine** in reinem Canvas-JavaScript (`app/js/`): Helden-KI mit Generator-Abläufen (`hero.js`), Gegner (`enemies.js`), Spielzeug/Power-ups (`items.js`), Effekte und Bildschirmschäden (`fx.js`, `screen.js`), Kino-Regie (`cinema.js`), die automatische Regie (`director.js`) und der Dojo-Kampfmodus mit Controller-Unterstützung über die Gamepad-API (`duel.js`).
 

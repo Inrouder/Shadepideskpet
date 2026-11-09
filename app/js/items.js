@@ -153,7 +153,7 @@ class Item extends Entity {
     if (this.ground && (this.kind === 'ball' || this.kind === 'holocube')) this.spinV = this.vx * 0.03;
     this.spinA += this.spinV * dt;
     // Wand-Abpraller für Bälle
-    if (this.def.bounce && (this.x <= this.w / 2 + 1 || this.x >= this.world.terrain.W - this.w / 2 - 1)) this.vx = -this.vx;
+    if (this.def.bounce && (this.x <= this.world.terrain.minX + this.w / 2 + 1 || this.x >= this.world.terrain.maxX - this.w / 2 - 1)) this.vx = -this.vx;
     // Fliegende Gegenstände treffen Gegner
     if (!this.ground && Math.hypot(this.vx, this.vy) > 650) {
       for (const e of this.world.enemies) if (!e.dead && e.team === 'enemy' && rectsOverlap(this.bounds(), e.bounds()) && this.lastHit !== e) {

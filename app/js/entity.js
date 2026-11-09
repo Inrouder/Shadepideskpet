@@ -42,6 +42,7 @@ class Entity {
   leaveGround() { this.ground = null; this.wid = null; this.winRef = null; }
 
   land(s, impact) {
+    this.leaping = false;
     this.ground = s; this.wid = s.wid; this.y = s.y; this.vy = 0;
     this.winRef = this.anchorOf(s.wid);
     const air = this.airTime;
@@ -64,7 +65,7 @@ class Entity {
           if (this.onWindowJolt && Math.hypot(dx, dy) > 45 && this.onWindowJolt(dx, dy)) return;
         }
       }
-      const s = this.wid === 'floor' ? T.surfaces[0] : T.surfaceOf(this.wid, this.x, 1);
+      const s = this.wid === 'floor' ? T.floorAt(this.x) : T.surfaceOf(this.wid, this.x, 1);
       if (!s) { this.leaveGround(); }
       else {
         this.ground = s; this.y = s.y;
@@ -76,7 +77,12 @@ class Entity {
         let nx = this.x + this.vx * dt;
         if (nx < s.x1 || nx > s.x2) {
           if (this.edgeStop && !this.thrown && this.wid !== 'floor' && Math.abs(this.vx) < 500) { nx = clamp(nx, s.x1, s.x2); this.vx = 0; this.onEdge && this.onEdge(); }
-          else if (this.wid === 'floor') { if (!this.noClamp) { nx = clamp(nx, s.x1 + this.w / 2, s.x2 - this.w / 2); this.vx = -this.vx * 0.3; } }
+          else if (this.wid === 'floor') {
+            // Nachbarbildschirm mit tieferem Boden: hinüberlaufen und hinunterfallen
+            const [lo, hi] = T.xRangeAt(this.x, s.y - 2);
+            if (nx > lo + this.w / 2 && nx < hi - this.w / 2 && (nx < s.x1 ? T.floorAt(nx - this.w).y : T.floorAt(nx + this.w).y) > s.y + 4) this.leaveGround();
+            else if (!this.noClamp) { nx = clamp(nx, s.x1 + this.w / 2, s.x2 - this.w / 2); this.vx = -this.vx * 0.3; this.onFloorEdge && this.onFloorEdge(); }
+          }
           else this.leaveGround();
         }
         this.x = nx;
@@ -94,14 +100,16 @@ class Entity {
         const s = T.landing(this.x, y0, this.y, this.ignoreSurface);
         if (s) { const imp = this.vy; this.land(s, imp); }
       }
-      if (this.y > T.floorY + 2 && !this.ground) this.land(T.surfaces[0], this.vy);
+      if (!this.ground) { const f = T.floorAt(this.x); if (this.y > f.y + 2) this.land(f, this.vy); }
     }
-    // Bildschirmränder
-    const W = T.W;
+    // Bildschirmränder (bei mehreren Monitoren: so weit die Nachbarn diese Höhe abdecken)
     if (this.noClamp) return;
-    if (this.x < this.w / 2) { this.x = this.w / 2; if (this.vx < 0) this.vx = -this.vx * 0.5; this.onWall && this.onWall(-1); }
-    if (this.x > W - this.w / 2) { this.x = W - this.w / 2; if (this.vx > 0) this.vx = -this.vx * 0.5; this.onWall && this.onWall(1); }
-    if (this.y - this.h < 0 && this.vy < 0) { this.y = this.h; this.vy = -this.vy * 0.3; }
+    // Bei gezielten Sprüngen über eine Monitorecke nur die Gesamtgrenzen beachten
+    const [lo, hi] = !T.multi ? [0, T.W] : this.leaping ? [T.minX, T.maxX] : T.xRangeAt(this.x, this.y - 2);
+    if (this.x < lo + this.w / 2) { this.x = lo + this.w / 2; if (this.vx < 0) this.vx = -this.vx * 0.5; this.onWall && this.onWall(-1); }
+    if (this.x > hi - this.w / 2) { this.x = hi - this.w / 2; if (this.vx > 0) this.vx = -this.vx * 0.5; this.onWall && this.onWall(1); }
+    const top = T.multi ? T.topAt(this.x) : 0;
+    if (this.y - this.h < top && this.vy < 0) { this.y = top + this.h; this.vy = -this.vy * 0.3; }
   }
 
   tickTimers(dt) {

@@ -78,6 +78,16 @@ jobs:
           if (-not $res.games) { throw 'Spielerkennung nicht geladen' }
           if (-not $res.visible) { throw 'Overlay nach dem Spielmodus nicht wieder sichtbar' }
           if ($res.mouseRearms -lt 1 -or $res.mouseAck -lt 1) { throw "Maus nach dem Spielmodus nicht neu eingerichtet ($($res.mouseRearms)/$($res.mouseAck))" }
+          if ($res.renderer.frames -lt 1) { throw 'Animation läuft nicht' }
+          # Zweiter Monitor (simuliert): eigenes Fenster, gemeinsame Welt
+          $out2 = Join-Path $env:RUNNER_TEMP 'selftest2.json'
+          $env:DESKPET_FAKE_DISPLAYS = '[{"id":1,"bounds":{"x":0,"y":0,"width":1024,"height":768},"workArea":{"x":0,"y":0,"width":1024,"height":728},"scaleFactor":1},{"id":2,"bounds":{"x":1024,"y":0,"width":1280,"height":720},"workArea":{"x":1024,"y":0,"width":1280,"height":680},"scaleFactor":1.25}]'
+          Start-Process -FilePath 'dist/win-unpacked/Shadepi Deskpet.exe' -ArgumentList "--selftest=$out2" -Wait -PassThru | Out-Null
+          Remove-Item Env:DESKPET_FAKE_DISPLAYS
+          $res2 = Get-Content $out2 -Raw | ConvertFrom-Json
+          Write-Output $res2.renderer
+          if ($res2.views -ne 1 -or $res2.viewsVisible -ne 1) { throw "Monitorfenster fehlt ($($res2.views)/$($res2.viewsVisible))" }
+          if ($res2.renderer.screens -ne 2 -or $res2.renderer.views -ne 1) { throw "Renderer kennt den zweiten Monitor nicht: $($res2.renderer | ConvertTo-Json -Compress) $($res2.rendererError)" }
 
       - uses: actions/upload-artifact@v4
         with:

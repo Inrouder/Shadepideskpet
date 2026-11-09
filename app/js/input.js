@@ -10,7 +10,9 @@ class Input {
     this.hist = [];
     this.lastV = { x: 0, y: 0 };
     this.lastEvent = 0; this.pollT = 0; this.missed = 0; this.rearmedAt = 0;
-    window.addEventListener('mousemove', (e) => { this.lastEvent = performance.now(); this.missed = 0; this.move(e.clientX, e.clientY); });
+    this.ign = new Map([['home', true]]); // Klick-Durchlass je Fenster (Heim + weitere Monitore)
+    this.cur = 'home';
+    window.addEventListener('mousemove', (e) => this.onMove(e));
     window.addEventListener('mousedown', (e) => this.down(e));
     window.addEventListener('mouseup', (e) => this.up(e));
     window.addEventListener('contextmenu', (e) => { e.preventDefault(); });
@@ -26,20 +28,37 @@ class Input {
     return null;
   }
 
-  setIgnore(ignore) {
-    if (ignore === this.ignoring) return;
-    this.ignoring = ignore;
-    if (this.bridge) this.bridge.setIgnore(ignore);
+  onMove(e) { this.lastEvent = performance.now(); this.missed = 0; this.move(e.clientX, e.clientY); }
+
+  // Fenster unter einem Weltpunkt: 'home' oder die Kennung des Monitors
+  screenKey(x, y) {
+    const T = this.world.terrain;
+    if (T.screens.length < 2) return 'home';
+    const sc = T.screenContaining(x, y);
+    return !sc || sc.home ? 'home' : sc.id;
   }
+
+  setIgnore(ignore, key = this.cur) {
+    if (this.ign.get(key) === ignore) return;
+    this.ign.set(key, ignore);
+    if (key === 'home') this.ignoring = ignore;
+    if (this.bridge) this.bridge.setIgnore(ignore, key);
+  }
+  setAllIgnore(ignore) { for (const k of ['home', ...this.world.terrain.screens.filter((s) => !s.home).map((s) => s.id)]) this.setIgnore(ignore, k); }
 
   refreshHover(x, y) {
     // Dojo: Overlay fängt die Maus komplett (Klicks = Angriffe)
-    if (this.world.duel) { this.setIgnore(false); document.body.style.cursor = this.world.duel.player && !this.world.duel.inMenu ? 'crosshair' : ''; return null; }
-    const overUi = this.ui.isOver(x, y);
+    if (this.world.duel) { this.setIgnore(false, 'home'); document.body.style.cursor = this.world.duel.player && !this.world.duel.inMenu ? 'crosshair' : ''; return null; }
+    const key = this.screenKey(x, y);
+    if (key !== this.cur) { if (!this.drag && !this.pending) this.setIgnore(true, this.cur); this.cur = key; }
+    const overUi = key === 'home' && this.ui.isOver(x, y);
     const ent = overUi ? null : this.entityAt(x, y);
     const capture = !!(this.drag || this.pending || overUi || ent);
-    this.setIgnore(!capture);
-    document.body.style.cursor = this.drag ? 'grabbing' : ent ? 'grab' : '';
+    if (this.drag) this.setAllIgnore(false); // beim Ziehen über Monitorgrenzen hinweg alles empfangen
+    else this.setIgnore(!capture, key);
+    const cur = this.drag ? 'grabbing' : ent ? 'grab' : '';
+    document.body.style.cursor = cur;
+    for (const v of (this.world.views ? this.world.views.list : [])) { try { v.doc.body.style.cursor = cur; } catch (_) {} }
     return ent;
   }
 
@@ -112,6 +131,7 @@ class Input {
     const ent = this.drag.ent;
     const v = this.velocity();
     this.drag = null; this.pending = null;
+    this.setAllIgnore(true);
     if (ent instanceof Hero) ent.onRelease(v.x * 0.9, v.y * 0.9);
     else ent.release(v.x * 0.9, v.y * 0.9);
   }
@@ -134,6 +154,7 @@ class Input {
   // Hauptprozess hat den Klick-Durchlass neu eingerichtet: Zustand angleichen
   reset(cursor) {
     this.ignoring = true;
+    for (const k of this.ign.keys()) this.ign.set(k, true);
     if (this.drag) this.finishDrag();
     this.pending = null;
     if (cursor) { this.world.mouse.x = cursor.x; this.world.mouse.y = cursor.y; }
@@ -154,11 +175,12 @@ class Input {
     let c = null;
     try { c = this.bridge.cursor(); } catch (_) { return; }
     if (!c || (Math.abs(c.x - this.world.mouse.x) < 2 && Math.abs(c.y - this.world.mouse.y) < 2)) return;
-    const inside = c.x >= 0 && c.y >= 0 && c.x < innerWidth && c.y < innerHeight;
+    const T = this.world.terrain;
+    const inside = T.screens.length > 1 ? !!T.screenContaining(c.x, c.y) : c.x >= 0 && c.y >= 0 && c.x < innerWidth && c.y < innerHeight;
     this.move(c.x, c.y);
     if (!inside) return;
     // Maus bewegt sich über dem Overlay, aber kein Ereignis kam an → Weiterleitung tot
-    if (this.ignoring && ++this.missed >= 4 && now - this.rearmedAt > 5000 && this.bridge.rearmMouse) {
+    if (this.ign.get(this.screenKey(c.x, c.y)) !== false && ++this.missed >= 4 && now - this.rearmedAt > 5000 && this.bridge.rearmMouse) {
       this.rearmedAt = now; this.missed = 0;
       this.bridge.rearmMouse('keine Mausbewegungen mehr');
     }

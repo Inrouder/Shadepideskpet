@@ -49,7 +49,7 @@ class Cinema {
     return realDt * this.timeScale;
   }
 
-  drawOverlay(ctx, W, H) {
+  drawOverlay(ctx, W, H, noCards) {
     if (this.vignette > 0.01) {
       const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
       g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(3,5,10,${0.55 * this.vignette})`);
@@ -62,7 +62,7 @@ class Cinema {
       ctx.fillRect(0, 0, W, bh); ctx.fillRect(0, H - bh, W, bh);
       ctx.fillStyle = 'rgba(98,227,238,0.35)'; ctx.fillRect(0, bh - 1, W, 1); ctx.fillRect(0, H - bh, W, 1);
     }
-    for (const c of this.cards) this.drawCard(ctx, c, W, H);
+    if (!noCards) for (const c of this.cards) this.drawCard(ctx, c, W, H);
   }
 
   drawCard(ctx, c, W, H) {

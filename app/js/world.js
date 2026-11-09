@@ -82,14 +82,22 @@ class World {
   }
 
   draw() {
-    const ctx = this.ctx, T = this.terrain;
-    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.clearRect(0, 0, T.W, T.H);
+    const T = this.terrain;
+    this.render(this.ctx, { x: 0, y: 0, w: T.W, h: T.H, dpr: this.dpr, home: true });
+    if (this.views) this.views.draw();
+  }
+
+  // Die ganze Welt in ein Fenster zeichnen; v = Ausschnitt in Weltkoordinaten
+  // (Heimbildschirm bei 0,0, weitere Monitore daneben).
+  render(ctx, v) {
+    ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
+    ctx.clearRect(0, 0, v.w, v.h);
     if (this.fade <= 0) return;
     ctx.globalAlpha = this.fade;
-    if (this.demoWindows) this.demoWindows.draw(ctx, this);
-    if (this.duel) this.duel.drawBackdrop(ctx);
     ctx.save();
+    ctx.translate(-v.x, -v.y);
+    if (this.demoWindows) this.demoWindows.draw(ctx, this, v);
+    if (this.duel && v.home) this.duel.drawBackdrop(ctx);
     ctx.translate(this.cinema.ox, this.cinema.oy);
     for (const s of this.screen) s.draw(ctx);
     if (this.settings.debug) this.drawDebug(ctx);
@@ -97,17 +105,22 @@ class World {
     const actors = [...this.enemies.filter((e) => !e.flying), ...this.heroes.filter((h) => !h.absent || h.alpha > 0)];
     if (this.duel && this.duel.player) actors.push(this.duel.player);
     actors.sort((a, b) => (a.dragged ? 1 : 0) - (b.dragged ? 1 : 0) || a.y - b.y);
-    for (const a of actors) a.draw(ctx);
-    for (const e of this.enemies) if (e.flying) e.draw(ctx);
+    // Nur zeichnen, was in diesem Fenster sichtbar sein kann
+    const pad = 260 * this.u;
+    const vis = (e) => v.home && !this.views ? true : e.x > v.x - pad && e.x < v.x + v.w + pad && e.y > v.y - pad && e.y < v.y + v.h + pad * 2;
+    for (const a of actors) if (vis(a)) a.draw(ctx);
+    for (const e of this.enemies) if (e.flying && vis(e)) e.draw(ctx);
     for (const p of this.projectiles) p.draw(ctx);
-    if (this.duel) this.duel.drawWorld(ctx);
+    if (this.duel && v.home) this.duel.drawWorld(ctx);
     this.fx.draw(ctx);
     this.bubbles.draw(ctx);
     this.fx.draw(ctx, 'top');
     ctx.restore();
-    this.drawBossBar(ctx);
-    if (this.duel) this.duel.drawHud(ctx);
-    this.cinema.drawOverlay(ctx, T.W, T.H);
+    if (v.home) {
+      this.drawBossBar(ctx);
+      if (this.duel) this.duel.drawHud(ctx);
+    }
+    this.cinema.drawOverlay(ctx, v.w, v.h, !v.home);
     ctx.globalAlpha = 1;
   }
 
