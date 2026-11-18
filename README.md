@@ -5,15 +5,17 @@
 Ein Desktop-Maskottchen im Stil von **[ShadepiRPG](https://github.com/Inrouder/ShadepiRPG)**: **Shadepi** und **Raven** leben auf deinem Bildschirm. Sie laufen über die Taskleiste, klettern an echten Fenstern hoch, stehen auf Titelleisten und fahren mit, wenn du ein Fenster verschiebst. Ab und zu greifen Drohnen, Datenviren, Cyberpunk-Gangs, Kampfbots oder sogar Bosse an. Alles läuft vollautomatisch und mit Kino-Inszenierung: Letterbox-Balken, Titelkarten, Zeitlupe beim letzten Treffer, Kamerawackeln und Trefferstopps.
 
 <!-- neueste-version:start (wird beim Veröffentlichen automatisch aktualisiert) -->
-> ### ⬇️ Neueste Version: [1.8.0](https://github.com/Inrouder/Shadepideskpet/releases/tag/v1.8.0) · 18.11.2026 · The Real Dragon
+> ### ⬇️ Neueste Version: [1.9.0](https://github.com/Inrouder/Shadepideskpet/releases/tag/v1.9.0) · 19.11.2026 · Der Weg des Drachen
 >
-> **[Installer herunterladen](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.8.0/Shadepi-Deskpet-1.8.0-Setup.exe)** (mit automatischen Updates) · **[Portable Version](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.8.0/Shadepi-Deskpet-1.8.0-portable.exe)** (ohne Installation) · [alle Versionen](https://github.com/Inrouder/Shadepideskpet/releases) · [Änderungen](CHANGELOG.md)
+> **[Installer herunterladen](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.9.0/Shadepi-Deskpet-1.9.0-Setup.exe)** (mit automatischen Updates) · **[Portable Version](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.9.0/Shadepi-Deskpet-1.9.0-portable.exe)** (ohne Installation) · [alle Versionen](https://github.com/Inrouder/Shadepideskpet/releases) · [Änderungen](CHANGELOG.md)
 >
-> - **Neuer Dojo-Modus „The Real Dragon“:** Shadepi wird Runde für Runde stärker, eine verlorene Runde beendet den Versuch. Wählbar im Dojo unter Modus (M bzw. Controller Y), im Menü unter Szenen und im Tray.
-> - **Rote Aura:** Nach Runde 3 steht er wieder auf – Lebensanzeige füllt sich, rote Flammenaura, Ki-Kugeln, und bei Sprüngen und Landungen bersten Boden und Taskleiste.
-> - **Macht des Drachen:** Wutschrei, weiß leuchtende Flammenaura, rot glühende Augen, Gelächter – *„Nun spürst du die Macht des Drachen in mir.“* Jeder Einschlag reißt den Desktop auf und löst Ki-Explosionen aus; die **Drachenwelle** mit Energiedrachen weichst du mit einem gezielten Sprung aus.
-> - **Finale:** Shadepi schwebt im Schutzschild, Naniten fesseln dich, über ihm wächst eine riesige Energiekugel. Schlagtaste hämmern zum Befreien, Aktionstaste hämmern für die eigene Kugel – die Tasten werden eingeblendet. Sieg: Titel **Dragonking**. Niederlage: Der ganze Bildschirm zerspringt.
-> - Eigene Ergebnisanzeige mit erreichter Stufe; Dragonking-Titel, beste Stufe und Versuche werden gespeichert.
+> - **The Real Dragon deutlich schwerer:** Auf **Mittel** hat Shadepi mehr Leben, trifft härter, reagiert schneller, feuert mehr Ki-Kugeln und die Drachenwelle öfter; im Finale musst du schneller hämmern.
+> - **Schwer ist jetzt gnadenlos:** Ausdauerleiste (Angriffe und Ausweichen kosten Ausdauer, geblockte Treffer auch – leer heißt Deckung gebrochen), verzögerte Angriffe gegen stures Parieren, kleineres Paradefenster, nur halbe Heilung zwischen den Runden. Wer fällt, sieht **GEFALLEN**.
+> - **Kein Wehrlos-Prügeln mehr (ab Mittel, auch im Training):** Wer Shadepi mit Angriffen eindeckt, löst einen **Durchbruch** aus – er blockt kurz, teleportiert sich hinter dich und kontert.
+> - **Teleports auf Schwer ab Runde 3:** Shadepi weicht per Schattensprung aus, taucht hinter dir auf und überbrückt Abstand blitzschnell.
+> - **Geheimes Finish:** Wer The Real Dragon auf Schwer besiegt, bekommt eine besondere Chance … Den Weg musst du selbst finden – oder auf Raven hören.
+> - **Shadepi als Kämpfer freischaltbar:** Nach dem Sieg auf Schwer erscheint er in der Auswahl (Spezialtechnik **Schattenschnitt**) und kämpft gegen seinen eigenen Schatten.
+> - **Neue Laufanimation:** Die Figuren humpeln nicht mehr. Schrittbilder werden am Körper ausgerichtet, der Schritt-Takt richtet sich nach dem Laufweg, dazu ein leichtes Wippen – im Dojo, bei Gegnern und bei Shadepi und Raven im Kampfstil.
 <!-- neueste-version:end -->
 
 ![Drohnenschwarm: Raven übernimmt eine Drohne](docs/vorschau-drohnen.png)
