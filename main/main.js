@@ -284,7 +284,8 @@ function buildTray() {
     { label: 'Shadepi Deskpet', enabled: false },
     ...gameItems,
     { label: 'Menü öffnen  (Strg+Alt+P)', click: () => send('open-menu', cursorInOverlay()) },
-    { label: 'Dojo: Gegen Shadepi kämpfen  (Strg+Alt+D)', click: openDojo },
+    { label: 'Dojo: Gegen Shadepi kämpfen  (Strg+Alt+D)', click: () => openDojo() },
+    { label: 'Dojo: The Real Dragon', click: () => openDojo('dragon') },
     { type: 'separator' },
     { label: 'Maskottchen', submenu: [radio('Shadepi', 'mode', 'shadepi'), radio('Raven', 'mode', 'raven'), radio('Beide', 'mode', 'beide'), radio('Abwechselnd (Besuche)', 'mode', 'wechselnd')] },
     { label: 'Ereignis starten', submenu: EVENTS.map(([id, label]) => ({ label, click: () => send('event', id) })) },
@@ -331,10 +332,10 @@ function setAutostart(on) {
   buildTray();
 }
 
-function openDojo() {
+function openDojo(mode) {
   if (!overlay) return;
   if (!overlay.isVisible()) { userHidden = false; if (gaming.active) gameOverride = true; showAll(); buildTray(); }
-  send('dojo');
+  send('dojo', mode ? { mode } : null);
 }
 
 function toggleVisible() {
@@ -394,7 +395,7 @@ if (!app.requestSingleInstanceLock()) {
 
     globalShortcut.register('CommandOrControl+Alt+P', () => send('open-menu', cursorInOverlay()));
     globalShortcut.register('CommandOrControl+Alt+H', toggleVisible);
-    globalShortcut.register('CommandOrControl+Alt+D', openDojo);
+    globalShortcut.register('CommandOrControl+Alt+D', () => openDojo());
 
     try { gameDetect = require('./games').createGameDetector(); } catch (e) { if (process.platform === 'win32') log('Spielerkennung nicht verfügbar: ' + e.message); }
     if (gameDetect) { setInterval(checkGames, 2500); setTimeout(checkGames, 1500); }

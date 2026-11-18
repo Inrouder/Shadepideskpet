@@ -107,6 +107,7 @@ class World {
     for (const s of this.screen) s.draw(ctx);
     if (this.settings.debug) this.drawDebug(ctx);
     for (const i of this.items) i.draw(ctx);
+    if (this.duel && v.home) this.duel.drawBehind(ctx);
     const actors = [...this.enemies.filter((e) => !e.flying), ...this.heroes.filter((h) => !h.absent || h.alpha > 0)];
     if (this.duel && this.duel.player) actors.push(this.duel.player);
     actors.sort((a, b) => (a.dragged ? 1 : 0) - (b.dragged ? 1 : 0) || a.y - b.y);
@@ -127,6 +128,7 @@ class World {
       if (this.duel) this.duel.drawHud(ctx);
     }
     this.cinema.drawOverlay(ctx, v.w, v.h, !v.home);
+    if (this.duel) this.duel.drawScreen(ctx, v);
     ctx.globalAlpha = 1;
   }
 

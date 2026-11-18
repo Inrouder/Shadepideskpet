@@ -142,7 +142,18 @@ class DemoWindows {
     });
     bridge.on('open-menu', (p) => ui.open(p.x, p.y));
     bridge.on('event', (id) => director.startEvent(id));
-    bridge.on('dojo', () => world.dojo && (world.dojo.active ? world.dojo.togglePause() : world.dojo.open()));
+    bridge.on('dojo', (o) => {
+      const dj = world.dojo;
+      if (!dj) return;
+      // Aus dem Tray direkt in „The Real Dragon“
+      if (o && o.mode) {
+        dj.mode = o.mode === 'dragon' ? 'dragon' : 'training';
+        if (!dj.active) dj.open();
+        else if (dj.view === 'select') dj.paintSelect();
+        return;
+      }
+      if (dj.active) dj.togglePause(); else dj.open();
+    });
     bridge.on('scanner', (s) => { world.scanner = s; if (ui && ui.isOpen) ui.updateStatus(); });
     window.addEventListener('error', (e) => bridge.log && bridge.log(`${e.message} @ ${e.filename}:${e.lineno}`));
     const origError = console.error;
@@ -211,7 +222,11 @@ class DemoWindows {
   if (params.has('dojo') || params.has('duel')) setTimeout(() => {
     dojo.open();
     const who = params.get('duel');
-    if (who && BROTHERS[who]) { dojo.sel = DOJO_ORDER.indexOf(who); dojo.lvl = Math.max(0, DOJO_LEVELS.indexOf(params.get('level') || 'mittel')); dojo.start(); }
+    if (params.get('mode') === 'dragon') dojo.mode = 'dragon';
+    if (who && BROTHERS[who]) {
+      dojo.sel = DOJO_ORDER.indexOf(who); dojo.lvl = Math.max(0, DOJO_LEVELS.indexOf(params.get('level') || 'mittel')); dojo.start();
+      if (params.get('stage') && dojo.duel.dragon) dojo.duel.dragonJump(+params.get('stage'));
+    }
   }, +(params.get('delay') || 1500));
 
   if (params.get('event')) setTimeout(() => director.startEvent(params.get('event')), +(params.get('delay') || 1500));

@@ -150,6 +150,7 @@ class Brother extends Entity {
 
   // NEON-KOMBAT-Bild für den aktuellen Zustand
   arcadeFrame() {
+    if (this.fpose) return { hurt: AP.hurt, charge: AP.special0, throw: AP.special1 }[this.fpose] ?? AP.ready;
     if (this.ko) return this.koT < 0.2 ? AP.hurt : AP.ko;
     if (this.hurtT > 0) return AP.hurt;
     const m = this.move;
@@ -179,6 +180,7 @@ class Brother extends Entity {
       if (this.blockT > 0) this.drawGuard(ctx);
       return;
     }
+    if (this.fpose) { drawBrother(ctx, this.who, 'combat', { hurt: 4, charge: 1, throw: 2 }[this.fpose] ?? 0, x, y, S, { ...o, flip: f < 0 }); return; }
     if (this.ko) { const k = this.koT; drawBrother(ctx, this.who, 'combat', k < 0.25 ? 4 : k < 0.6 ? 5 : k < 0.9 ? 6 : 7, x, y, S, { ...o, flip: f < 0 }); return; }
     if (this.hurtT > 0) { drawBrother(ctx, this.who, 'combat', 4, x, y, S, { ...o, flip: f < 0 }); return; }
     if (this.move) { drawBrother(ctx, this.who, 'combat', this.move.frame, x, y, S, { ...o, flip: f < 0 }); return; }
@@ -221,8 +223,10 @@ class Duel {
   owns(h) { return !!this.player && h.name === 'shadepi'; }
   get inMenu() { return this.phase === 'select' || this.phase === 'result' || this.paused; }
 
-  setup(who, level) {
+  setup(who, level, mode = 'training') {
     this.who = who; this.level = level; this.L = DUEL_LEVELS[level];
+    this.mode = mode === 'dragon' ? 'dragon' : 'training';
+    this.dragon = this.mode === 'dragon' ? {} : null;
     this.paused = false;
     this.begin();
   }
@@ -243,25 +247,29 @@ class Duel {
     const raH = W.hero('raven');
     if (this.who === 'raven' && raH && !raH.absent) { raH.cancelTask(); W.fx.smokePuff(raH.x, raH.y - 40 * W.u, 0.6 * W.u, 0.8); raH.absent = true; raH.alpha = 0; this.hidRaven = true; }
     else if (this.who !== 'raven' && this.hidRaven && raH) { raH.absent = false; raH.alpha = 1; this.hidRaven = false; }
+    if (this.dragon) this.dragonReset();
     this.player = new Brother(W, this.who, T.W * 0.3, T.floorY);
     this.player.land(T.surfaces[0], 0);
     this.round = 0; this.wins = { you: 0, me: 0 }; this.matchOver = false;
     this.stats = { hits: 0, taken: 0, parries: 0, maxCombo: 0, dmg: 0, specials: 0 };
     this.combo = 0; this.lowMeSaid = this.lowYouSaid = false;
     Sound.setMusic('Fight');
+    this.world.cinema.cards = [];
     this.nextRound();
   }
 
   nextRound() {
     const W = this.world, T = W.terrain, sh = this.sh, p = this.player, u = this.u;
     this.round++;
-    p.hp = p.maxHp; p.ko = false; p.koT = 0; p.move = null; p.hurtT = 0; p.blockT = 0; p.state = 'idle'; p.energy = Math.min(p.energy, 50);
+    if (this.dragon) this.L = dragonLevel(this.level, Math.min(5, this.round));
+    p.hp = p.maxHp; p.fpose = null; p.ko = false; p.koT = 0; p.move = null; p.hurtT = 0; p.blockT = 0; p.state = 'idle'; p.energy = Math.min(p.energy, 50);
     p.x = clamp(T.W * 0.5 - 220 * u, 60, T.W - 60); p.y = T.floorY; p.land(T.surfaces[0], 0); p.vx = 0; p.facing = 1;
     sh.maxHp = this.L.hp; sh.hp = sh.maxHp; sh.ko = false; sh.forcePose = null; sh.hurtT = 0;
     sh.x = clamp(T.W * 0.5 + 220 * u, 60, T.W - 60); sh.y = T.floorY; sh.land(T.surfaces[0], 0); sh.walkVx = 0; sh.facing = -1; sh.faceCam = false;
     this.projectiles = [];
     this.timer = 75; this.phase = 'intro'; this.phaseT = 0; this.ai.cd = 1.4;
     W.cinema.letterbox(2.2);
+    if (this.dragon) { this.dragonRoundStart(); return; }
     W.cinema.card(`RUNDE ${this.round}`, `${BROTHERS[this.who].title.toUpperCase()} GEGEN SHADEPI · ${this.L.label.toUpperCase()}`, BROTHERS[this.who].color, 1.9, { always: true });
     Sound.play('calib_lock', 0.6);
     if (this.round === 1) setTimeout(() => this.say(pick([...SH_TALK.start, ...SH_TALK[this.who]]), true), 500);
@@ -269,6 +277,7 @@ class Duel {
 
   endRound(winner, reason) {
     if (this.phase !== 'fight') return;
+    if (this.dragon) { this.dragonEndRound(winner, reason); return; }
     const W = this.world;
     this.phase = 'roundEnd'; this.phaseT = 0;
     this.wins[winner]++;
@@ -288,11 +297,18 @@ class Duel {
 
   finish() {
     const W = this.world;
+    const wasPhase = this.phase;
     this.phase = 'result';
-    const won = this.wins.you > this.wins.me;
+    const won = this.dragon ? wasPhase === 'dragonWin' : this.wins.you > this.wins.me;
     const rec = { ...(W.settings.dojo || {}) };
     rec.wins = (rec.wins || 0) + (won ? 1 : 0); rec.losses = (rec.losses || 0) + (won ? 0 : 1);
     rec[this.who] = (rec[this.who] || 0) + (won ? 1 : 0);
+    if (this.dragon) {
+      const reached = this.dragon.fin ? 6 : this.dragon.stage;
+      rec.dragonRuns = (rec.dragonRuns || 0) + 1;
+      rec.dragonBest = Math.max(rec.dragonBest || 0, reached);
+      if (won) rec.dragonKing = (rec.dragonKing || 0) + 1;
+    }
     if (W.api) W.api.set('dojo', rec); else W.settings.dojo = rec;
     Sound.setMusic(null);
     this.ui.showResult(won, this.stats, rec);
@@ -303,6 +319,8 @@ class Duel {
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('keyup', this.onKey);
     window.removeEventListener('blur', this.onBlur);
+    if (this.dragon) this.dragonReset();
+    this.dragon = null;
     this.player = null; this.projectiles = [];
     const sh = this.sh;
     if (sh.taskName === 'duel') sh.cancelTask();
@@ -317,6 +335,8 @@ class Duel {
   }
 
   backToSelect() {
+    if (this.dragon) this.dragonReset();
+    this.dragon = null;
     this.player = null; this.projectiles = []; this.phase = 'select'; this.paused = false;
     const sh = this.sh;
     sh.ko = false; sh.hp = sh.maxHp = sh.def.hp; sh.forcePose = null; sh.hurtT = 0;
@@ -338,7 +358,7 @@ class Duel {
     if (e.target && e.target.tagName === 'INPUT') return;
     const down = e.type === 'keydown';
     const k = e.code;
-    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight', 'KeyJ', 'KeyK', 'KeyL', 'KeyE', 'KeyI', 'KeyQ', 'Escape', 'Enter', 'Tab'].includes(k)) e.preventDefault();
+    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight', 'KeyJ', 'KeyK', 'KeyL', 'KeyE', 'KeyI', 'KeyQ', 'KeyM', 'Escape', 'Enter', 'Tab'].includes(k)) e.preventDefault();
     if (down && !this.keys[k]) this.edges[k] = true;
     this.keys[k] = down;
   }
@@ -354,7 +374,7 @@ class Duel {
       dash: e.ShiftLeft || e.ShiftRight || e.KeyL, special: e.KeyE || e.KeyI || e.KeyQ, pause: e.Escape,
       // Menüs
       navL: e.KeyA || e.ArrowLeft, navR: e.KeyD || e.ArrowRight, navU: e.KeyW || e.ArrowUp, navD: e.KeyS || e.ArrowDown,
-      confirm: e.Enter || e.Space, back: e.Escape, lvlPrev: e.KeyQ, lvlNext: e.Tab || e.KeyR,
+      confirm: e.Enter || e.Space, back: e.Escape, lvlPrev: e.KeyQ, lvlNext: e.Tab || e.KeyR, mode: e.KeyM,
     };
     // Controller (Standard-Belegung, z. B. Xbox/PlayStation über den Browser)
     let pads = [];
@@ -382,6 +402,7 @@ class Duel {
       inp.confirm = inp.confirm || edge(0) || edge(9);
       inp.back = inp.back || edge(1) || edge(8);
       inp.lvlPrev = inp.lvlPrev || edge(4) || edge(6); inp.lvlNext = inp.lvlNext || edge(5) || edge(7);
+      inp.mode = inp.mode || edge(3);
       this.prevPad = cur; this.prevAx = [ax, ay];
       if (this.padConnected !== gp.id) { this.padConnected = gp.id; this.ui.onPad(gp.id); }
     } else if (this.padConnected) { this.padConnected = null; this.ui.onPad(null); }
@@ -397,9 +418,10 @@ class Duel {
     const ra = this.ra;
     if (ra && !ra.task && !ra.ko && !ra.dragged && this.player) ra.setTask('watch', this.watch(ra), 9);
     if (this.inMenu) { this.ui.handleInput(inp); if (this.paused || !this.player || inp.pause) return; }
-    if (this.phase === 'fight' && inp.pause) { this.ui.togglePause(); return; }
+    if ((this.phase === 'fight' || this.phase === 'finale') && inp.pause) { this.ui.togglePause(); return; }
     if (!this.player) return;
     this.phaseT += dt;
+    if (this.dragon) this.dragonTick(dt);
     const p = this.player, sh = this.sh, W = this.world;
     if (this.phase === 'intro') {
       if (this.phaseT > 1.8) { this.phase = 'fight'; this.phaseT = 0; W.cinema.card('LOS!', '', COLORS.amber, 0.9, { always: true, small: true }); Sound.play('calib_alarm', 0.5, 1.3); if (ra && this.round === 1) ra.talk(pick(RA_TALK.start), true); }
@@ -410,7 +432,7 @@ class Duel {
       this.shadepiAI(dt);
     } else if (this.phase === 'roundEnd') {
       if (this.phaseT > 3.6) { if (this.matchOver) this.finish(); else this.nextRound(); }
-    }
+    } else if (this.dragon) this.dragonUpdate(inp, dt);
     this.updateFighter(p, dt);
     this.updateShadepi(dt);
     this.updateProjectiles(dt);
@@ -682,6 +704,7 @@ class Duel {
   }
   checkKo() {
     const sh = this.sh;
+    if (this.dragon && this.dragonCheck()) return;
     if (sh.hp <= 0 && !sh.ko) { sh.hp = 0; sh.ko = true; sh.hurtT = 0; this.ai.move = null; this.ai.blocking = false; this.endRound('you', 'ko'); }
   }
 
@@ -731,7 +754,10 @@ class Duel {
     if (sh.hurtT > 0) sh.hurtT -= dt;
     sh.buffs.core = 0;
     if (sh.ko) { sh.walkVx = 0; }
+    if (this.dragon && this.dragon.fly) return; // schwebt im Finale (Position kommt aus dem Ablauf)
+    const air = !sh.ground, vy0 = sh.vy;
     this.floorPhysics(sh, dt);
+    if (this.dragon) this.dragonShadepi(sh, dt, air, vy0);
   }
 
   shadepiAI(dt) {
@@ -761,6 +787,7 @@ class Duel {
       return;
     }
     ai.cd = rnd(0.35, 1.1) * (1.6 - L.aggro) + L.react * 0.6;
+    if (this.dragon && this.dragonPick(ad, dx)) return;
     if (!p.ground && p.y < sh.y - 60 * u && ad < 260 * u && chance(0.6)) { this.aiStart('jumpslash'); return; }
     if (ad > 320 * u) { this.aiStart(chance(0.5) ? 'shuriken' : 'approach'); return; }
     if (L.shadow && chance(0.12)) { this.aiStart('shadow'); return; }
@@ -769,6 +796,8 @@ class Duel {
   }
 
   aiStart(kind, o = {}) {
+    // Ab der roten Aura fliegen Ki-Kugeln statt Shuriken
+    if (kind === 'shuriken' && this.dragon && this.dragon.stage >= 4) { kind = 'kiball'; o = { n: this.dragon.stage === 5 ? 3 : 2, ...o }; }
     this.ai.move = { kind, t: 0, step: 0, ...o };
   }
 
@@ -806,13 +835,14 @@ class Duel {
           sh.facing = sign(dx) || sh.facing;
           Sound.play('slash', 0.6, rnd(0.9, 1.1));
           W.fx.slash(sh.x + sh.facing * 24 * u, sh.y - 52 * u, sh.facing, COLORS.red, u);
+          if (this.dragon) this.dragonStrike(sh.x + sh.facing * 62 * u, sh.y - 52 * u);
           if (this.inReach(78)) this.hitPlayer(6, { knock: 180 });
         }
         break;
       }
       case 'kick':
         sh.walkVx = 0; sh.forcePose = 'pose'; sh.poseRow = m.t < 0.12 ? 1 : 2; sh.akind = 'kick';
-        if (!m.hit && m.t > 0.14) { m.hit = true; sh.vx = sh.facing * 160 * u; Sound.play('drive_knock', 0.6, 1.2); if (this.inReach(80)) this.hitPlayer(8, { knock: 460, up: 240, heavy: true }); }
+        if (!m.hit && m.t > 0.14) { m.hit = true; sh.vx = sh.facing * 160 * u; Sound.play('drive_knock', 0.6, 1.2); if (this.dragon) this.dragonStrike(sh.x + sh.facing * 66 * u, sh.y - 40 * u); if (this.inReach(80)) this.hitPlayer(8, { knock: 460, up: 240, heavy: true }); }
         if (m.t > 0.45) done();
         break;
       case 'charge':
@@ -826,6 +856,7 @@ class Duel {
           sh.vx = sh.facing * 300 * u;
           Sound.play('slash', 0.9, 0.8); W.cinema.shake(5, 0.2);
           W.fx.slash(sh.x + sh.facing * 30 * u, sh.y - 54 * u, sh.facing, COLORS.red, 1.6 * u, { w: 10 });
+          if (this.dragon) this.dragonStrike(sh.x + sh.facing * 90 * u, sh.y - 54 * u);
           if (this.inReach(110)) this.hitPlayer(13, { knock: 520, up: 300, heavy: true });
         } else if (m.t > 1.0) done();
         break;
@@ -849,6 +880,7 @@ class Duel {
           if (!m.hit && sh.vy > -250 && dist(sh.x, sh.y - 50 * u, p.x, p.y - 50 * u) < 100 * u) {
             m.hit = true; sh.forcePose = 'attack'; sh.attackDur = 0.35; sh.animT = 0.12;
             Sound.play('slash', 0.8); W.fx.slash(sh.x + sh.facing * 20 * u, sh.y - 54 * u, sh.facing, COLORS.red, 1.2 * u, { a0: -2, a1: 1.4 });
+            if (this.dragon) this.dragonStrike(sh.x + sh.facing * 50 * u, sh.y - 50 * u);
             this.hitPlayer(9, { knock: 320, up: 120 });
           }
         } else if (m.t > 0.2) done();
@@ -862,10 +894,10 @@ class Duel {
           W.fx.smokePuff(sh.x, sh.y - 30 * u, 0.6 * u, 0.9);
         }
         sh.forcePose = 'attack'; sh.attackDur = 0.4; sh.animT = Math.min(0.39, m.t);
-        if (!m.hit && m.t > 0.18) { m.hit = true; Sound.play('slash', 0.8, 1.1); W.fx.slash(sh.x + sh.facing * 24 * u, sh.y - 52 * u, sh.facing, COLORS.red, 1.2 * u); if (this.inReach(85)) this.hitPlayer(9, { knock: 300 }); }
+        if (!m.hit && m.t > 0.18) { m.hit = true; Sound.play('slash', 0.8, 1.1); W.fx.slash(sh.x + sh.facing * 24 * u, sh.y - 52 * u, sh.facing, COLORS.red, 1.2 * u); if (this.dragon) this.dragonStrike(sh.x + sh.facing * 64 * u, sh.y - 52 * u); if (this.inReach(85)) this.hitPlayer(9, { knock: 300 }); }
         if (m.t > 0.55) done();
         break;
-      default: done();
+      default: if (!(this.dragon && this.dragonMove(m, dt, done, dx))) done();
     }
   }
 
@@ -879,6 +911,10 @@ class Duel {
     const W = this.world, u = this.u, p = this.player, sh = this.sh;
     for (const b of this.projectiles) {
       b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt; if (b.kind === 'shuriken') b.rot = (b.rot || 0) + dt * 20;
+      if (b.kind === 'ki') {
+        if (chance(dt * 40)) W.fx.add({ type: 'pixel', x: b.x + rnd(-6, 6), y: b.y + rnd(-6, 6), vx: -b.vx * 0.05, vy: rnd(-30, 30), g: 0, life: 0.3, color: b.white ? '#ffffff' : COLORS.red, size: 2 });
+        if (b.y > W.terrain.floorY - 4) { b.dead = true; this.kiBoom(b.x, W.terrain.floorY - 6 * u, 0.6); if (this.dragon && this.dragon.stage >= 4) this.crack(b.x, W.terrain.floorY, 55 * u, 'floor'); continue; }
+      }
       if (b.t > 2 || b.x < -50 || b.x > W.terrain.W + 50) b.dead = true;
       if (b.dead) continue;
       if (b.from === 'you' && !sh.ko && pointIn(b.x, b.y, sh.bounds())) {
@@ -888,7 +924,8 @@ class Duel {
         if (b.big) W.fx.hitBurst(b.x, b.y, 130 * u);
       } else if (b.from === 'me' && !p.ko && pointIn(b.x, b.y, p.bounds())) {
         b.dead = true;
-        this.hitPlayer(b.dmg, { knock: 140, fromX: b.x - b.vx * 0.05 });
+        if (b.kind === 'ki') { this.kiBoom(b.x, b.y, 0.6); if (this.dragon && this.dragon.stage === 5) this.crack(b.x, b.y, 50 * u, 'burst', { life: 30 }); }
+        this.hitPlayer(b.dmg, { knock: b.kind === 'ki' ? 260 : 140, fromX: b.x - b.vx * 0.05 });
       }
     }
     this.projectiles = this.projectiles.filter((b) => !b.dead);
@@ -945,13 +982,18 @@ class Duel {
       ctx.restore();
     }
     this.drawProjectiles(ctx);
+    if (this.dragon) this.drawDragonFront(ctx);
   }
 
   drawProjectiles(ctx) {
     const u = this.u;
     for (const b of this.projectiles) {
       ctx.save(); ctx.translate(b.x, b.y);
-      if ((b.kind === 'impulse' || b.kind === 'plasma') && IMG.afx) {
+      if (b.kind === 'ki') {
+        ctx.restore();
+        drawKiBall(ctx, b.x, b.y, b.r, b.white ? '#ff3150' : '#ff2030', this.world.time, { core: '#ffffff' });
+        continue;
+      } else if ((b.kind === 'impulse' || b.kind === 'plasma') && IMG.afx) {
         drawArcadeFx(ctx, b.kind === 'plasma' ? 2 : 0, 1, 0, 0, (b.kind === 'plasma' ? 110 : 120) * u, { rot: Math.atan2(b.vy, b.vx) });
       } else if (b.kind === 'shuriken') {
         ctx.rotate(b.rot); ctx.fillStyle = '#c9ccd3'; ctx.beginPath();
@@ -985,12 +1027,13 @@ class Duel {
       ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8;
       ctx.fillRect(flip ? x + w - fw : x, y + 2, fw, 10);
       ctx.shadowBlur = 0;
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < (wins < 0 ? 0 : 2); i++) {
         const cx = flip ? x + 8 + i * 16 : x + w - 8 - i * 16;
         ctx.fillStyle = i < wins ? COLORS.amber : '#2a3342'; ctx.beginPath(); ctx.arc(cx, y - 9, 5, 0, 7); ctx.fill();
       }
     };
-    bar(24, top + 22, bw, p.hp / p.maxHp, d.color === '#f4f0e4' ? '#e9e2cf' : d.color, false, d.name.toUpperCase(), d.weapon.toUpperCase(), this.wins.you);
+    const D = this.dragon;
+    bar(24, top + 22, bw, p.hp / p.maxHp, d.color === '#f4f0e4' ? '#e9e2cf' : d.color, false, d.name.toUpperCase(), d.weapon.toUpperCase(), D ? -1 : this.wins.you);
     // Energie für die Spezialtechnik
     const ey = top + 56, ew = bw * 0.6;
     ctx.fillStyle = 'rgba(7,10,18,0.88)'; ctx.fillRect(18, ey - 4, ew + 12, 13);
@@ -999,11 +1042,15 @@ class Duel {
     ctx.font = '8px Silkscreen, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillStyle = p.energy >= 100 ? COLORS.cyan : COLORS.muted;
     ctx.fillText(p.energy >= 100 ? `${d.special.name.toUpperCase()} BEREIT · ${this.padConnected ? 'LB' : 'E'}` : 'ENERGIE', 24 + ew + 14, ey + 3);
-    bar(T.W - 24 - bw, top + 22, bw, sh.hp / sh.maxHp, COLORS.red, true, 'SHADEPI', `TRAINING · ${this.L.label.toUpperCase()}`, this.wins.me);
+    if (D) {
+      const st = DRAGON_STAGES[Math.max(1, D.stage)];
+      const col = D.aura === 'white' ? (Math.sin(W.time * 10) > 0 ? '#ffffff' : '#ffd6dc') : D.aura === 'red' ? '#ff2a3a' : COLORS.red;
+      bar(T.W - 24 - bw, top + 22, bw, sh.hp / sh.maxHp, col, true, D.stage >= 5 ? 'SHADEPI · DRACHE' : 'SHADEPI', `${st.title} · ${this.L.label.toUpperCase()}`, -1);
+    } else bar(T.W - 24 - bw, top + 22, bw, sh.hp / sh.maxHp, COLORS.red, true, 'SHADEPI', `TRAINING · ${this.L.label.toUpperCase()}`, this.wins.me);
     // Zeit
     ctx.textAlign = 'center'; ctx.font = '34px ShadepiPixel, monospace'; ctx.fillStyle = this.timer < 10 ? COLORS.warn : '#fff';
-    ctx.fillText(String(Math.max(0, Math.ceil(this.timer))), T.W / 2, top + 22);
-    ctx.font = '8px Silkscreen, monospace'; ctx.fillStyle = COLORS.muted; ctx.fillText(`RUNDE ${this.round}`, T.W / 2, top + 44);
+    ctx.fillText(isFinite(this.timer) ? String(Math.max(0, Math.ceil(this.timer))) : '∞', T.W / 2, top + 22);
+    ctx.font = '8px Silkscreen, monospace'; ctx.fillStyle = COLORS.muted; ctx.fillText(D ? DRAGON_STAGE_NAMES[D.fin ? 6 : D.stage].toUpperCase() : `RUNDE ${this.round}`, T.W / 2, top + 44);
     // Kombo
     if (this.combo >= 2) {
       ctx.font = '26px ShadepiPixel, monospace'; ctx.fillStyle = COLORS.amber; ctx.shadowColor = COLORS.amber; ctx.shadowBlur = 10;
@@ -1017,6 +1064,7 @@ class Duel {
         : 'A/D LAUFEN · W/LEER SPRINGEN · LINKSKLICK/J ANGRIFF · RECHTSKLICK/K SCHWER · S BLOCK · SHIFT AUSWEICHEN · E SPEZIAL · ESC PAUSE', T.W / 2, T.floorY - 14);
     }
     ctx.restore();
+    if (D) this.drawDragonHud(ctx);
   }
 }
 
@@ -1032,10 +1080,11 @@ class Dojo {
     this.world = world; this.bridge = bridge; this.input = input;
     this.root = document.getElementById('ui');
     this.el = null; this.duel = null;
-    this.sel = 0; this.lvl = 1; this.focus = 0; this.view = null;
+    this.sel = 0; this.lvl = 1; this.focus = 0; this.view = null; this.mode = 'training';
     const last = world.settings.dojo || {};
     if (last.last && DOJO_ORDER.includes(last.last)) this.sel = DOJO_ORDER.indexOf(last.last);
     if (last.level && DOJO_LEVELS.includes(last.level)) this.lvl = DOJO_LEVELS.indexOf(last.level);
+    if (last.mode === 'dragon') this.mode = 'dragon';
   }
 
   get active() { return !!this.duel; }
@@ -1145,7 +1194,8 @@ class Dojo {
         </div>
         <div class="bros">${tiles}</div>
       </div>
-      <div class="dj-row"><span class="lbl">SCHWIERIGKEIT</span><div class="lvls">${lv}</div><span class="rec">SIEGE ${rec.wins || 0} · NIEDERLAGEN ${rec.losses || 0}</span></div>
+      <div class="dj-row"><span class="lbl">MODUS</span><div class="modes"><button class="mode" data-mode="training">TRAINING</button><button class="mode dragon" data-mode="dragon">THE REAL DRAGON</button></div><span class="dj-mdesc"></span></div>
+      <div class="dj-row"><span class="lbl">SCHWIERIGKEIT</span><div class="lvls">${lv}</div><span class="rec">SIEGE ${rec.wins || 0} · NIEDERLAGEN ${rec.losses || 0}${rec.dragonKing ? ` · DRAGONKING ×${rec.dragonKing}` : ''}</span></div>
       <div class="dj-actions"><button class="act go" data-nav="start">KÄMPFEN</button><button class="act" data-nav="leave">ZURÜCK</button></div>
       <div class="dj-keys">${this.keysHint()}</div>`);
     this.bigCanvas = this.panel.querySelector('canvas.big');
@@ -1154,6 +1204,7 @@ class Dojo {
       b.addEventListener('mouseenter', () => { if (this.sel !== +b.dataset.bro) { this.sel = +b.dataset.bro; this.paintSelect(); } });
     });
     this.panel.querySelectorAll('.lvl').forEach((b) => b.addEventListener('click', () => { this.lvl = +b.dataset.lvl; this.paintSelect(); Sound.play('calib_tick', 0.4, 1.4); }));
+    this.panel.querySelectorAll('.mode').forEach((b) => b.addEventListener('click', () => this.setMode(b.dataset.mode)));
     this.panel.querySelector('[data-close]').addEventListener('click', () => this.close());
     this.panel.querySelector('[data-nav=start]').addEventListener('click', () => this.start());
     this.panel.querySelector('[data-nav=leave]').addEventListener('click', () => this.close());
@@ -1164,15 +1215,35 @@ class Dojo {
 
   keysHint() {
     return this.duel && this.duel.padConnected
-      ? (!this.duel.player ? '<b>AUSWAHL</b> STICK · A KÄMPFEN · LB/RB SCHWIERIGKEIT · ' : '') + '<b>CONTROLLER</b> STICK/STEUERKREUZ LAUFEN · A SPRINGEN · X ANGRIFF · Y SCHWER · B AUSWEICHEN · RB/RT BLOCK · LB/LT SPEZIAL · START PAUSE'
-      : (this.view === 'select' || !this.duel || !this.duel.player ? '<b>AUSWAHL</b> PFEILE/WASD · ENTER KÄMPFEN · Q/TAB SCHWIERIGKEIT · ' : '') + '<b>TASTATUR</b> A/D LAUFEN · W/LEERTASTE SPRINGEN · LINKSKLICK/J ANGRIFF · RECHTSKLICK/K SCHWER · S BLOCK · SHIFT AUSWEICHEN · E SPEZIAL · ESC PAUSE · <b>CONTROLLER</b> WIRD UNTERSTÜTZT';
+      ? (!this.duel.player ? '<b>AUSWAHL</b> STICK · A KÄMPFEN · LB/RB SCHWIERIGKEIT · Y MODUS · ' : '') + '<b>CONTROLLER</b> STICK/STEUERKREUZ LAUFEN · A SPRINGEN · X ANGRIFF · Y SCHWER · B AUSWEICHEN · RB/RT BLOCK · LB/LT SPEZIAL · START PAUSE'
+      : (this.view === 'select' || !this.duel || !this.duel.player ? '<b>AUSWAHL</b> PFEILE/WASD · ENTER KÄMPFEN · Q/TAB SCHWIERIGKEIT · M MODUS · ' : '') + '<b>TASTATUR</b> A/D LAUFEN · W/LEERTASTE SPRINGEN · LINKSKLICK/J ANGRIFF · RECHTSKLICK/K SCHWER · S BLOCK · SHIFT AUSWEICHEN · E SPEZIAL · ESC PAUSE · <b>CONTROLLER</b> WIRD UNTERSTÜTZT';
   }
   onPad() { const k = this.panel && this.panel.querySelector('.dj-keys'); if (k) k.innerHTML = this.keysHint(); }
+
+  setMode(m) {
+    if (m === this.mode) return;
+    this.mode = m === 'dragon' ? 'dragon' : 'training';
+    this.paintSelect();
+    if (this.mode === 'dragon') {
+      Sound.play('legacy_aura', 0.5, 0.7);
+      const sh = this.world.hero('shadepi');
+      if (sh) sh.talk(pick(['Den echten Drachen? Bist du sicher?', 'Gut. Aber beschwer dich nicht über deinen Bildschirm.', 'Der Drache schläft. Noch.']), true);
+    } else Sound.play('calib_tick', 0.4, 1.4);
+  }
 
   paintSelect() {
     if (this.view !== 'select') return;
     this.panel.querySelectorAll('.bro').forEach((b, i) => b.classList.toggle('on', i === this.sel));
     this.panel.querySelectorAll('.lvl').forEach((b, i) => b.classList.toggle('on', i === this.lvl));
+    this.panel.querySelectorAll('.mode').forEach((b) => b.classList.toggle('on', b.dataset.mode === this.mode));
+    this.panel.classList.toggle('dragon-mode', this.mode === 'dragon');
+    const recD = this.world.settings.dojo || {};
+    const md = this.panel.querySelector('.dj-mdesc');
+    if (md) md.textContent = this.mode === 'dragon'
+      ? `SHADEPI WIRD JEDE RUNDE STÄRKER · EINE NIEDERLAGE UND ES IST VORBEI${recD.dragonBest ? ` · BESTE STUFE: ${DRAGON_STAGE_NAMES[recD.dragonBest].toUpperCase()}` : ''}`
+      : 'ZWEI GEWONNENE RUNDEN ENTSCHEIDEN';
+    const go = this.panel.querySelector('[data-nav=start]');
+    if (go) go.textContent = this.mode === 'dragon' ? 'DEN DRACHEN WECKEN' : 'KÄMPFEN';
     const id = DOJO_ORDER[this.sel], d = BROTHERS[id], rec = this.world.settings.dojo || {};
     const det = this.panel.querySelector('.dj-detail');
     det.style.setProperty('--c', d.color);
@@ -1236,11 +1307,11 @@ class Dojo {
   start() {
     const who = DOJO_ORDER[this.sel], level = DOJO_LEVELS[this.lvl];
     const W = this.world;
-    const rec = { ...(W.settings.dojo || {}), last: who, level };
+    const rec = { ...(W.settings.dojo || {}), last: who, level, mode: this.mode };
     if (W.api) W.api.set('dojo', rec); else W.settings.dojo = rec;
     this.hide();
     Sound.play('calib_accept', 0.6, 1.2);
-    this.duel.setup(who, level);
+    this.duel.setup(who, level, this.mode);
   }
 
   // ---------------------------------------- Pause
@@ -1252,7 +1323,7 @@ class Dojo {
     this.focus = 0;
     this.setView('pause', `
       <div class="dj-big">PAUSE</div>
-      <div class="dj-sub">RUNDE ${d.round} · ${BROTHERS[d.who].name.toUpperCase()} ${d.wins.you} : ${d.wins.me} SHADEPI</div>
+      <div class="dj-sub">${d.dragon ? `THE REAL DRAGON · ${DRAGON_STAGE_NAMES[d.dragon.fin ? 6 : d.dragon.stage].toUpperCase()}` : `RUNDE ${d.round} · ${BROTHERS[d.who].name.toUpperCase()} ${d.wins.you} : ${d.wins.me} SHADEPI`}</div>
       <div class="dj-menu"><button class="act" data-nav="resume">WEITER</button><button class="act" data-nav="select">KRIEGER WECHSELN</button><button class="act warn" data-nav="leave">DOJO VERLASSEN</button></div>
       <div class="dj-keys">${this.keysHint()}</div>`);
     this.wireNav();
@@ -1274,13 +1345,14 @@ class Dojo {
     else if (what === 'leave') {
       if (d.player && d.phase !== 'result') d.sh.talk(pick(['Schon müde? Morgen wieder.', 'Aufgeben ist auch eine Lektion.', 'Dann eben ein andermal.']), true);
       this.close();
-    } else if (what === 'again') { d.paused = false; this.hide(); d.setup(d.who, d.level); }
+    } else if (what === 'again') { d.paused = false; this.hide(); d.setup(d.who, d.level, d.mode); }
     else if (what === 'start') this.start();
   }
 
   // ---------------------------------------- Ergebnis
   showResult(won, st, rec) {
     const d = this.duel;
+    if (d.dragon) { this.showDragonResult(won, st, rec); return; }
     const grade = this.grade(won, st);
     const verdict = {
       S: 'Meisterhaft. Ich sag es nur einmal.', A: 'Stark. Der Orden wäre stolz.', B: 'Ordentlich. Da geht noch mehr.',
@@ -1306,6 +1378,33 @@ class Dojo {
     setTimeout(() => { if (this.duel === d && d.phase === 'result') d.sh.talk(verdict, true); }, 600);
   }
 
+  showDragonResult(won, st, rec) {
+    const d = this.duel, D = d.dragon;
+    const reached = D.fin ? 6 : D.stage;
+    const grade = won ? (st.taken < 120 ? 'S' : 'A') : reached >= 5 ? 'B' : reached >= 4 ? 'C' : 'D';
+    const verdict = won ? 'Du hast meinen Respekt, Dragonking.' : reached >= 6 ? 'So nah dran. Und doch: Bildschirm kaputt.'
+      : reached >= 4 ? 'Du hast den Drachen geweckt. Das allein ist schon etwas.' : pick(DR_TALK.loseEarly);
+    this.focus = 0;
+    this.setView('result', `
+      <div class="dj-big ${won ? 'win dragonking' : 'lose'}">${won ? 'DRAGONKING' : 'GAME OVER'}</div>
+      <div class="dj-sub">THE REAL DRAGON · ${BROTHERS[d.who].title.toUpperCase()} · ${d.L.label.toUpperCase()} · ERREICHT: ${DRAGON_STAGE_NAMES[reached].toUpperCase()}</div>
+      <div class="dj-stages">${DRAGON_STAGE_NAMES.slice(1).map((n, i) => `<span class="${i + 1 < reached || (won && i + 1 === reached) ? 'done' : i + 1 === reached ? 'cur' : ''}${i >= 3 ? ' s' + (i + 1) : ''}">${n.toUpperCase()}</span>`).join('')}</div>
+      <div class="dj-res">
+        <div class="grade g${grade}">${grade}</div>
+        <div class="rows">
+          <div><span>TREFFER</span><b>${st.hits}</b></div><div><span>SCHADEN</span><b>${st.dmg}</b></div>
+          <div><span>BESTE KOMBO</span><b>${st.maxCombo}</b></div><div><span>PERFEKTE PARADEN</span><b>${st.parries}</b></div>
+          <div><span>SPEZIALTECHNIKEN</span><b>${st.specials}</b></div><div><span>EINGESTECKT</span><b>${st.taken}</b></div>
+        </div>
+      </div>
+      <div class="dj-quote"><span>SHADEPI:</span> „${verdict}“</div>
+      <div class="dj-menu"><button class="act go" data-nav="again">${won ? 'NOCH EINMAL' : 'REVANCHE'}</button><button class="act" data-nav="select">KRIEGER WECHSELN</button><button class="act warn" data-nav="leave">BEENDEN</button></div>
+      <div class="dj-sub small">DRAGONKING ×${rec.dragonKing || 0} · BESTE STUFE: ${DRAGON_STAGE_NAMES[rec.dragonBest || 1].toUpperCase()} · ${rec.dragonRuns || 0} VERSUCHE</div>`);
+    this.wireNav();
+    Sound.play(won ? 'calib_accept' : 'calib_error', 0.6);
+    if (!won) setTimeout(() => { if (this.duel === d && d.phase === 'result') d.sh.talk(verdict, true); }, 600);
+  }
+
   grade(won, st) {
     let p = st.hits * 2 + st.maxCombo * 3 + st.parries * 6 + st.specials * 3 - st.taken * 0.35 + (won ? 25 : 0);
     return p >= 85 ? 'S' : p >= 60 ? 'A' : p >= 38 ? 'B' : p >= 18 ? 'C' : 'D';
@@ -1322,6 +1421,7 @@ class Dojo {
       if (inp.navD) move(Math.min(n - 1, this.sel + DOJO_COLS));
       if (inp.lvlPrev) { this.lvl = Math.max(0, this.lvl - 1); this.paintSelect(); Sound.play('calib_tick', 0.35, 1.4); }
       if (inp.lvlNext) { this.lvl = (this.lvl + 1) % 3; this.paintSelect(); Sound.play('calib_tick', 0.35, 1.4); }
+      if (inp.mode) this.setMode(this.mode === 'dragon' ? 'training' : 'dragon');
       if (inp.confirm) this.start();
       else if (inp.back) this.close();
       return;

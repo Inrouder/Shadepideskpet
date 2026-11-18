@@ -1425,6 +1425,7 @@ class Hero extends Entity {
     }
     const opts = { flash: this.flash > 0 ? 0.8 : 0, alpha: this.alpha * (this.ko ? 0.9 : 1) };
     if (this.ko) { opts.tint = '#05070c'; opts.tintAmt = 0.35; }
+    else if (this.glow) { opts.tint = this.glow; opts.tintAmt = this.glowAmt || 0.2; }
     this.drawBody(ctx, this.x, this.y, opts);
     if (this.dizzy > 0 && !this.dragged) this.drawStars(ctx);
   }

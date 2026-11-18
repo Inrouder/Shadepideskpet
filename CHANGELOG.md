@@ -2,6 +2,14 @@
 
 Die neueste Version steht oben. Der Abschnitt einer Version wird beim Veröffentlichen automatisch als Release-Text übernommen und auf der Startseite des Repos angezeigt.
 
+## 1.8.0 · 18.11.2026 · The Real Dragon
+
+- **Neuer Dojo-Modus „The Real Dragon“:** Shadepi wird Runde für Runde stärker, eine verlorene Runde beendet den Versuch. Wählbar im Dojo unter Modus (M bzw. Controller Y), im Menü unter Szenen und im Tray.
+- **Rote Aura:** Nach Runde 3 steht er wieder auf – Lebensanzeige füllt sich, rote Flammenaura, Ki-Kugeln, und bei Sprüngen und Landungen bersten Boden und Taskleiste.
+- **Macht des Drachen:** Wutschrei, weiß leuchtende Flammenaura, rot glühende Augen, Gelächter – *„Nun spürst du die Macht des Drachen in mir.“* Jeder Einschlag reißt den Desktop auf und löst Ki-Explosionen aus; die **Drachenwelle** mit Energiedrachen weichst du mit einem gezielten Sprung aus.
+- **Finale:** Shadepi schwebt im Schutzschild, Naniten fesseln dich, über ihm wächst eine riesige Energiekugel. Schlagtaste hämmern zum Befreien, Aktionstaste hämmern für die eigene Kugel – die Tasten werden eingeblendet. Sieg: Titel **Dragonking**. Niederlage: Der ganze Bildschirm zerspringt.
+- Eigene Ergebnisanzeige mit erreichter Stufe; Dragonking-Titel, beste Stufe und Versuche werden gespeichert.
+
 ## 1.7.0 · 18.11.2026 · News & Autostart
 
 - **Gaming-News:** Shadepi ruft ab und zu ein Ordens-Hologramm auf und liest die neuesten Schlagzeilen großer Spieleseiten vor (Mein-MMO, PC Games, GameStar, GamePro, PCGH, Gamereactor – oder englisch PC Gamer, IGN, Polygon, Kotaku, Rock Paper Shotgun, Eurogamer). Er kommentiert sie, Raven gibt ihren Senf dazu, und „Artikel öffnen“ bringt dich direkt zum Artikel. Neuer Menüreiter **NEWS** mit allen Meldungen, Sprache und Häufigkeit.

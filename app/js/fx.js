@@ -247,6 +247,7 @@ function drawParticle(ctx, p, world) {
       break;
     }
     case 'blossom': drawBlossom(ctx, p); break;
+    case 'custom': p.draw(ctx, p, k); break;
     case 'shockwave':
       ctx.globalAlpha = (1 - k) * 0.8; ctx.strokeStyle = p.color; ctx.lineWidth = 6 * (1 - k) + 1; ctx.shadowColor = p.color; ctx.shadowBlur = 20;
       ctx.beginPath(); ctx.ellipse(p.x, p.y, lerp(10, p.r, easeOut(k)), lerp(4, p.r * 0.28, easeOut(k)), 0, 0, Math.PI * 2); ctx.stroke(); break;
