@@ -404,7 +404,8 @@ if (!app.requestSingleInstanceLock()) {
     setTimeout(() => sensors.start(), 4000);
     setInterval(() => { if (sensors) sensors.paused = gamePaused(); }, 2000);
 
-    news = new News(app.getPath('userData'), log);
+    const { net } = require('electron');
+    news = new News(app.getPath('userData'), log, net && net.fetch ? (u, o) => net.fetch(u, o) : null);
     news.onUpdate = (p) => send('news', p);
     if (settings.news) news.start(settings.newsLang);
     if (process.argv.some((a) => a.startsWith('--selftest='))) setTimeout(() => news.refresh(), 800);

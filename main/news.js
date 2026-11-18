@@ -62,7 +62,9 @@ function parseFeed(xml, feed) {
 }
 
 class News {
-  constructor(dir, log) {
+  constructor(dir, log, fetchImpl) {
+    // Im Programm Chromiums Netzwerk (electron net.fetch): wird von Seiten wie ein Browser behandelt
+    this.fetch = fetchImpl || ((...a) => fetch(...a));
     this.file = path.join(dir, 'news.json');
     this.log = log || (() => {});
     this.items = [];
@@ -89,7 +91,7 @@ class News {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 15000);
     try {
-      const res = await fetch(feed.url, { signal: ctrl.signal, redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ShadepiDeskpet', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5' } });
+      const res = await this.fetch(feed.url, { signal: ctrl.signal, redirect: 'follow', headers: { Accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.5', 'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8' } });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const xml = await res.text();
       const items = parseFeed(xml, feed);
