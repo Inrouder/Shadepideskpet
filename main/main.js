@@ -408,7 +408,7 @@ if (!app.requestSingleInstanceLock()) {
     news = new News(app.getPath('userData'), log, net && net.fetch ? (u, o) => net.fetch(u, o) : null);
     news.onUpdate = (p) => send('news', p);
     if (settings.news) news.start(settings.newsLang);
-    if (process.argv.some((a) => a.startsWith('--selftest='))) setTimeout(() => news.refresh(), 800);
+    if (process.argv.some((a) => a.startsWith('--selftest='))) setTimeout(() => { news.lang = 'beide'; news.refresh(); }, 800); // alle Quellen prüfen
 
     updater = new Updater((ch, st) => { send(ch, st); if (st.state === 'ready' || st.state === 'none') buildTray(); }, log);
     updater.start();

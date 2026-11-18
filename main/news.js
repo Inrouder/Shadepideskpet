@@ -10,7 +10,7 @@ const FEEDS = {
     { id: 'meinmmo', name: 'Mein-MMO', url: 'https://mein-mmo.de/feed/' },
     { id: 'pcgames', name: 'PC Games', url: 'https://www.pcgames.de/feed.cfm?menu_alias=home/' },
     { id: 'gamestar', name: 'GameStar', url: 'https://www.gamestar.de/news/rss/news.rss' },
-    { id: 'gamepro', name: 'GamePro', url: 'https://www.gamepro.de/rss/gamepro-news.rss' },
+    { id: 'gamepro', name: 'GamePro', url: 'https://www.gamepro.de/rss/gpnews.rss' },
     { id: 'pcgh', name: 'PCGH', url: 'https://www.pcgameshardware.de/feed.cfm?menu_alias=home/' },
     { id: 'gamereactor', name: 'Gamereactor', url: 'https://www.gamereactor.de/rss/rss.php' },
   ],
