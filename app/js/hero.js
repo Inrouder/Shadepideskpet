@@ -28,7 +28,7 @@ class Hero extends Entity {
     this.faceCam = false;
     this.swing = 0; this.swingV = 0;
     this.dragLineCd = 0; this.shakeMeter = 0; this.dizzy = 0; this.afterThrow = false;
-    this.specialCd = rnd(5, 9); this.shootCd = 0; this.castCd = rnd(2, 4); this.hurtT = 0;
+    this.specialCd = rnd(5, 9); this.shootCd = 0; this.castCd = rnd(2, 4); this.hurtT = 0; this.combatT = 0;
     this.alpha = 1; this.spin = 0; this.lastTalk = -10; this.grapple = null; this.dashing = false;
     this.mouseNear = 0; this.squash = 1;
     this.edgeStop = true;
@@ -438,7 +438,7 @@ class Hero extends Entity {
   }
 
   // ======================================================== Kampf
-  enemyList() { return this.world.enemies.filter((e) => !e.dead && e.team === 'enemy' && !e.noClamp); }
+  enemyList() { return this.world.enemies.filter((e) => !e.dead && e.team === 'enemy' && !e.noClamp && !(e.spar && this.name !== 'shadepi')); }
   pickTarget() {
     const list = this.enemyList();
     if (!list.length) return null;
@@ -478,18 +478,21 @@ class Hero extends Entity {
 
   *kick() {
     const W = this.world, u = this.u;
+    this.akind = 'kick';
     yield* this.anim('pose', 0.1, { row: 1, keep: true });
     this.poseRow = 2;
     this.vx = this.facing * 160 * u;
     Sound.play('drive_knock', 0.6, 1.2);
     this.meleeHit(74 * u, 5, { knock: 520, up: 260, stop: 0.07 });
     W.fx.ring(this.x + this.facing * 50 * u, this.y - 50 * u, COLORS.white, 26 * u, 0.2, 2);
+    if (this.arcadeOn) this.world.fx.sheetFx(1 + rndi(0, 1), 2, this.x + this.facing * 62 * u, this.y - 60 * u, 70 * u, 0.22);
     yield* this.wait(0.26);
-    this.forcePose = null;
+    this.forcePose = null; this.akind = null;
   }
 
   *chargeSlash() {
     const W = this.world, u = this.u;
+    this.akind = 'special';
     this.forcePose = 'pose'; this.poseRow = 0;
     Sound.play('legacy_aura', 0.3, 1.6);
     for (let e = 0; e < 0.55; e += W.dt) {
@@ -505,7 +508,7 @@ class Hero extends Entity {
     W.fx.slash(this.x + this.facing * 30 * u, this.y - 54 * u, this.facing, COLORS.red, 1.7 * u, { w: 10 });
     this.meleeHit(95 * u, 9, { knock: 560, up: 320, stop: 0.09 });
     yield* this.wait(0.3);
-    this.forcePose = null;
+    this.forcePose = null; this.akind = null;
   }
 
   *throwShuriken(t) {
@@ -554,7 +557,7 @@ class Hero extends Entity {
     const dir = sign(targets.reduce((s, e) => s + e.x, 0) / targets.length - this.x);
     const far = dir > 0 ? Math.max(...targets.map((e) => e.x)) + 90 * u : Math.min(...targets.map((e) => e.x)) - 90 * u;
     const endX = clamp(far, this.ground ? this.ground.x1 + 20 : 30, this.ground ? this.ground.x2 - 20 : W.terrain.W - 30);
-    this.facing = dir;
+    this.facing = dir; this.akind = 'special';
     W.cinema.letterbox(2.6); W.cinema.slowmo(0.3, 1.4); W.cinema.focus(2);
     W.cinema.card('SCHATTENSCHNITT', 'SHADEPI · ERSTER KRIEGER DES ORDENS', COLORS.red, 1.8, { small: true, y: W.terrain.H * 0.22 });
     this.forcePose = 'pose'; this.poseRow = 0;
@@ -584,7 +587,7 @@ class Hero extends Entity {
       damage(W, t, 12, this, { dir, knock: 380, up: 300, color: COLORS.redHot, stun: 0.8 });
     }
     yield* this.wait(0.3);
-    this.forcePose = null;
+    this.forcePose = null; this.akind = null;
   }
 
   *throwEmp(t) {
@@ -604,6 +607,11 @@ class Hero extends Entity {
   // Raven ------------------------------------------------------
   muzzle(crouch) {
     const S = this.S, f = this.facing;
+    if (this.arcadeOn) {
+      if (crouch) return { x: this.x + f * 62 * this.u, y: this.y - 74 * this.u };
+      const A = MANIFEST.arcade;
+      return { x: this.x + 75 * S * A.unit * f, y: this.y - 161 * S * A.unit };
+    }
     if (crouch) return { x: this.x + f * 50 * this.u, y: this.y - 62 * this.u };
     const m = f < 0 ? MUZZLE.left : MUZZLE.right;
     return { x: this.x + m[0] * S, y: this.y + m[1] * S };
@@ -635,13 +643,14 @@ class Hero extends Entity {
     const dir = this.facing < 0 ? DIR.left : DIR.right;
     this.forcePose = 'cast'; this.castRow = 0; this.forceDir = dir;
     Sound.play('hack', 0.5, kind === 'hack' ? 0.9 : 1.2);
+    const palm = (row) => this.arcadeOn ? arcadeEmitter(this.name, this.x, this.y, this.S, this.facing) : castPalm(row, dir, this.x, this.y, this.S, false);
     for (let e = 0; e < 0.4; e += W.dt) {
-      const p = castPalm(0, dir, this.x, this.y, this.S, false);
+      const p = palm(0);
       if (chance(W.dt * 40)) W.fx.add({ type: 'pixel', x: p.x + rnd(-20, 20), y: p.y + rnd(-20, 20), vx: rnd(-20, 20), vy: rnd(-20, 20), g: 0, life: 0.3, color: COLORS.cyan, size: 2 });
       yield;
     }
     this.castRow = 1;
-    const p = castPalm(1, dir, this.x, this.y, this.S, false);
+    const p = palm(1);
     Sound.play('electric', 0.8);
     for (const t of targets) {
       if (t.dead) continue;
@@ -676,6 +685,7 @@ class Hero extends Entity {
     }
     this.walkVx = 0;
     if (!this.world.hasEnemies()) {
+      if (this.arcadeOn && this.ground) { this.forcePose = 'victory'; this.combatT = 2.5; yield* this.wait(1.2); this.forcePose = null; }
       this.faceCam = true;
       yield* this.wait(0.4);
     }
@@ -1345,6 +1355,9 @@ class Hero extends Entity {
     if (W.duel && W.duel.owns(this)) return;
     this.tickTimers(dt);
     if (this.absent) { if (this.task) this.runTask(); return; }
+    // Kampfhaltung im NEON-KOMBAT-Stil: während Kämpfen, Training und Sparring (und kurz danach)
+    if (['fight', 'training', 'spar', 'duel'].includes(this.taskName) || (W.hasEnemies() && !this.ko)) this.combatT = 2.5;
+    else if (this.combatT > 0) this.combatT -= dt;
     for (const k in this.buffs) this.buffs[k] = Math.max(0, this.buffs[k] - dt);
     this.specialCd -= dt; this.castCd -= dt; this.hurtT -= dt;
     if (!W.hasEnemies() && !this.ko && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + dt * 3);
@@ -1416,6 +1429,43 @@ class Hero extends Entity {
     if (this.dizzy > 0 && !this.dragged) this.drawStars(ctx);
   }
 
+  // Arcade-Stil aktiv? (Einstellung, vorhandene Posen, Kampf/Duell)
+  get arcadeOn() {
+    const W = this.world;
+    if (!hasArcade(this.name) || W.settings.arcadeStyle === false) return false;
+    return this.combatT > 0 || !!(W.duel && W.duel.owns(this));
+  }
+
+  // Pose des Desktop-Helden → NEON-KOMBAT-Bild (oder -1: alte Grafik verwenden)
+  arcadeFrame(pose) {
+    const t = this.animT;
+    switch (pose) {
+      case 'idle': return Math.floor(t * 2.5) % 2 ? AP.breath : AP.ready;
+      case 'walk': return AP_WALK[Math.floor(t * 8) % 4];
+      case 'run': return AP_WALK[Math.floor(t * 13) % 4];
+      case 'attack': {
+        const k = this.attackDur ? t / this.attackDur : 1;
+        if (this.akind === 'kick') return k < 0.35 ? AP.kick0 : AP.kick1;
+        if (this.akind === 'special') return k < 0.3 ? AP.special0 : AP.special1;
+        return k < 0.3 && this.name !== 'raven' ? AP.punch0 : AP.punch1;
+      }
+      case 'hit': case 'tumble': case 'dragged': return AP.hurt;
+      case 'ko': return AP.ko;
+      case 'jump': return AP.jump;
+      case 'crouch': return AP.land;
+      case 'pose':
+        if (this.poseRow === 0) return AP.special0;
+        if (this.poseRow === 1) return this.akind === 'kick' ? AP.kick0 : this.ground ? AP.land : AP.jump;
+        if (this.poseRow === 2) return AP.kick1;
+        return AP.land;
+      case 'cast': return this.castRow === 0 ? AP.special0 : AP.special1;
+      case 'victory': return AP.victory;
+      case 'block': return AP.block;
+      case 'arcade': return this.arcadePose ?? AP.ready;
+    }
+    return -1;
+  }
+
   drawBody(ctx, x, y, o = {}) {
     const S = this.S, u = this.u;
     const pose = o.pose || this.currentPose();
@@ -1423,6 +1473,23 @@ class Hero extends Entity {
     const side = f < 0 ? DIR.left : DIR.right;
     const img = IMG[this.name];
     const opts = { flash: o.flash, alpha: o.alpha, tint: o.tint, tintAmt: o.tintAmt, sy: this.squash };
+    if (this.arcadeOn) {
+      const fr = this.arcadeFrame(pose);
+      if (fr >= 0) {
+        const ao = { ...opts, flip: f < 0 };
+        if (pose === 'dragged') { ao.rot = this.swing; ao.pivotY = 78 * u; }
+        if (pose === 'tumble') { ao.rot = this.spin; ao.pivotY = 45 * u; }
+        if (pose === 'ko' && this.world.duel) ao.tint = undefined;
+        drawArcade(ctx, this.name, fr, x, y, S, ao);
+        if (pose === 'cast' && this.name === 'raven') {
+          const p = arcadeEmitter('raven', x, y, S, f);
+          ctx.save(); ctx.globalAlpha = (o.alpha ?? 1) * (0.7 + 0.3 * Math.sin(this.world.time * 30));
+          ctx.shadowColor = COLORS.cyan; ctx.shadowBlur = 16; ctx.fillStyle = COLORS.cyanHot;
+          ctx.beginPath(); ctx.arc(p.x, p.y, (this.castRow === 1 ? 7 : 4) * u, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        }
+        return;
+      }
+    }
     const fd = this.forceDir;
     switch (pose) {
       case 'idle': {

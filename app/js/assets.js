@@ -13,7 +13,9 @@ const IMAGE_FILES = {
   bot: 'enemies/bot.png', virus: 'enemies/virus.png', ice: 'enemies/ice.png', drone: 'enemies/drone.png',
   bullet: 'fx/bullet.png', muzzle: 'fx/muzzle.png', lightning: 'fx/lightning.png', fire: 'fx/fire.png', smoke: 'fx/smoke.png', explosion: 'fx/explosion.png',
   brothers: 'enemies/brothers.png', frame: 'ui/frame.png', header: 'ui/header.png', icon: 'ui/icon.png',
+  cdrone: 'arcade/drone.png', nanites: 'arcade/nanites.png', afx: 'arcade/fx.png',
 };
+for (let i = 0; i < ((MANIFEST.arcade || {}).sheets || 0); i++) IMAGE_FILES[`arcade${i}`] = `arcade/fighters-${i}.png`;
 for (const n of ['crate', 'barrel', 'server', 'holocube', 'vending', 'fusebox']) {
   for (const s of ['intact', 'damaged', 'broken']) IMAGE_FILES[`${n}-${s}`] = `props/${n}-${s}.png`;
 }
@@ -126,6 +128,29 @@ function drawRegion(ctx, img, rx, ry, rw, rh, ax, ay, x, y, scale, opts = {}) {
 // Heldenatlas: 8 Spalten (Animationsbild) × 32 Zeilen (Gruppe*8 + Richtung), 128×160, Füße bei (64,152).
 const DIR = { down: 0, left: 1, right: 2, up: 3, upLeft: 4, upRight: 5, downLeft: 6, downRight: 7 };
 const GROUP = { idle: 0, walk: 1, attack: 2, hit: 3 };
+// NEON-KOMBAT-Posen (ShadepiRPG v0.61+): 16 Seitenansichten je Kämpfer, nach rechts blickend.
+// 0 Bereit, 1 Atmen, 2/3 Gehen, 4 Sprung, 5 Block, 6 Treffer, 7 K.O. (liegend), 8/9 Schlag,
+// 10/11 Tritt, 12/13 Spezial, 14 Sieg, 15 Landung/Ducken.
+const AP = { ready: 0, breath: 1, walkA: 2, walkB: 3, jump: 4, block: 5, hurt: 6, ko: 7, punch0: 8, punch1: 9, kick0: 10, kick1: 11, special0: 12, special1: 13, victory: 14, land: 15 };
+const AP_WALK = [2, 0, 3, 1];
+function hasArcade(id) { return !!(MANIFEST.arcade && MANIFEST.arcade.fighters[id]); }
+function arcadeScale(S) { const A = MANIFEST.arcade; return S * A.unit / A.keep; }
+function drawArcade(ctx, id, frame, x, y, S, opts = {}) {
+  const A = MANIFEST.arcade, f = A && A.fighters[id] && A.fighters[id].frames[frame];
+  if (!f) return false;
+  drawRegion(ctx, IMG['arcade' + f.s], f.r[0], f.r[1], f.r[2], f.r[3], f.a[0], f.a[1], x, y, arcadeScale(S), opts);
+  return true;
+}
+// Mündung / offene Hand relativ zum Fußpunkt (Weltkoordinaten)
+function arcadeEmitter(id, x, y, S, facing) {
+  const A = MANIFEST.arcade, e = (A && A.fighters[id] && A.fighters[id].emitter) || [78, -158];
+  return { x: x + e[0] * S * A.unit * facing, y: y + e[1] * S * A.unit };
+}
+// Effektblatt 4x4 (Zelle 128): Zeile 1 Cyanblitz/Patronenspur/Violettplasma/Schatten, 2 Treffer, 3 EMP
+function drawArcadeFx(ctx, col, row, x, y, size, opts = {}) {
+  drawRegion(ctx, IMG.afx, col * 128, row * 128, 128, 128, 64, 64, x, y, size / 128, opts);
+}
+
 function drawAtlas(ctx, img, group, dir, frame, x, y, scale, opts) {
   const row = group * 8 + dir;
   drawRegion(ctx, img, (frame & 7) * 128, row * 160, 128, 160, 64, 152, x, y, scale, opts);

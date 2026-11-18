@@ -3,7 +3,7 @@
 'use strict';
 
 const EVENT_LABELS = {
-  drohnen: 'Drohnenpatrouille', schwarm: 'Drohnenschwarm', viren: 'Virusausbruch', gang: 'Cyberpunk-Gang', bots: 'Kampfbots',
+  drohnen: 'Drohnenpatrouille', schwarm: 'Drohnenschwarm', viren: 'Virusausbruch', gang: 'Cyberpunk-Gang', bots: 'Kampfbots', kenzo: 'Kenzō fordert heraus',
   ice: 'Boss: ICE-Wächter', jackal: 'Boss: Chrome Jackal', training: 'Shadepi trainiert', luke: 'Raven repariert Kabel',
   besuch: 'Partner kommt vorbei', sparring: 'Sparring', plaudern: 'Plaudern', ball: 'Ballspiel', wechsel: 'Schichtwechsel',
   system: 'Systembericht', blick: 'Verliebter Blick', bluete: 'Shadepis Lichtblüte', dojo: 'Dojo: Kampf gegen Shadepi',
@@ -133,7 +133,7 @@ class Director {
     const hasSh = present.includes('shadepi'), hasRa = present.includes('raven');
     const chaos = this.S.activity === 'chaos';
     return weighted([
-      ['drohnen', 2.2], ['schwarm', chaos ? 1.4 : 0.7], ['viren', 1.6], ['gang', 1.6], ['bots', 1],
+      ['drohnen', 2.2], ['schwarm', chaos ? 1.4 : 0.7], ['viren', 1.6], ['gang', 1.6], ['bots', 1], ['kenzo', hasSh ? 0.6 : 0],
       ['ice', chaos ? 0.5 : 0.18], ['jackal', chaos ? 0.5 : 0.18],
       ['training', hasSh ? 2.2 : 0], ['luke', hasRa ? 2.2 : 0],
       ['besuch', !both && this.S.mode !== 'beide' ? 1.6 : 0],
@@ -161,6 +161,11 @@ class Director {
         const side = chance(0.5) ? -1 : 1; const n = rndi(2, 4);
         for (let i = 0; i < n; i++) setTimeout(() => { const e = W.spawnEnemy(i === n - 1 && chance(0.5) ? 'shooter' : 'punk', { side: chance(0.75) ? side : -side }); if (i === 0 && e) setTimeout(() => e.talk(pick(LINES.enemy.punk), true), 900); }, i * 600);
       }); break;
+      case 'kenzo': if (sh && !sh.absent) this.startFight('gang', 'SPARRING', 'KENZŌ FORDERT SHADEPI HERAUS', () => {
+        const e = W.spawnEnemy('kenzo', { side: chance(0.5) ? -1 : 1 });
+        if (e) setTimeout(() => e.talk(pick(['Shadepi! Zeig mir, ob du eingerostet bist.', 'Ein kleines Training unter Freunden?', 'Der Drache will tanzen.']), true), 1000);
+        if (ra && !ra.absent) setTimeout(() => ra.talk(pick(['Kenzō? Na dann viel Spaß, Jungs.', 'Ich halte mich raus. Ich schau nur zu.']), true), 2600);
+      }, 0); break;
       case 'bots': this.startFight('bots', 'KAMPFBOTS', 'SCHWERE EINHEITEN · LUFTABWURF', () => { for (let i = 0; i < rndi(2, 3); i++) setTimeout(() => W.spawnEnemy('bot'), i * 800); }, 0.45); break;
       case 'ice': this.startFight('boss', 'ICE-WÄCHTER', 'SCHWARZES ICE · SYSTEMSPERRE', () => {
         const tear = new GlitchTear(T.W / 2, T.floorY * 0.35, 240 * W.u); W.screen.push(tear);

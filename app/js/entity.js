@@ -165,6 +165,7 @@ function damage(world, target, amount, src, opts = {}) {
   const col = target.team === 'hero' ? COLORS.warn : (opts.color || COLORS.white);
   world.fx.number(c.x, c.y - target.h * 0.3, amount, col, amount >= 8);
   if (opts.sparks !== false) world.fx.sparks(c.x, c.y, opts.color || COLORS.white, 8, 300);
+  if (amount >= 6 && world.settings.arcadeStyle !== false) world.fx.hitBurst(c.x, c.y, (amount >= 10 ? 120 : 90) * world.u);
   if (target.team !== 'hero') world.stats.hits++;
   target.onHurt && target.onHurt(amount, src, opts);
   if (target.hp <= 0 && !target.dead) {
@@ -221,6 +222,7 @@ class Projectile {
     const W = this.world;
     W.fx.add({ type: 'shockwave', x: this.x, y: this.y, r: 190, life: 0.5, color: COLORS.cyan });
     W.fx.ring(this.x, this.y, COLORS.cyanHot, 160, 0.4, 5);
+    W.fx.empBurst(this.x, this.y, 260 * W.u);
     W.fx.sparks(this.x, this.y, COLORS.cyan, 24, 500);
     W.cinema.shake(7, 0.3); W.cinema.flash('#62e3ee', 0.18);
     Sound.play('electric', 1); Sound.play('prop_blast', 0.6);
@@ -268,6 +270,13 @@ class Projectile {
         ctx.shadowColor = COLORS.red; ctx.shadowBlur = 20; ctx.strokeStyle = COLORS.red; ctx.lineWidth = 6; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.arc(-20, 0, 34, -1.1, 1.1); ctx.stroke();
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+        break;
+      }
+      case 'plasma': case 'impulse': { // Violettplasma (Punk) / Hack-Impuls (Raven-Stil) aus dem Effektblatt
+        const a = Math.atan2(this.vy, this.vx);
+        ctx.translate(this.x, this.y);
+        if (IMG.afx) drawArcadeFx(ctx, this.kind === 'plasma' ? 2 : 0, 1, 0, 0, (this.kind === 'plasma' ? 70 : 80) * (this.world ? this.world.u : 1), { rot: a });
+        else { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, 6, 0, 7); ctx.fill(); }
         break;
       }
       case 'emp': {

@@ -113,7 +113,7 @@ class UI {
       card('Chrome Jackal', 'Boss', this.icon('foe', 'jackal'), () => D.startEvent('jackal'), 'boss');
     } else if (this.tab === 'scenes') {
       card('Dojo', 'Kämpfe selbst gegen Shadepi · WASD, Maus, Controller', null, () => { this.close(); W.dojo && W.dojo.open(); }, 'text dojo');
-      for (const id of ['drohnen', 'schwarm', 'viren', 'gang', 'bots', 'training', 'luke', 'system', 'besuch', 'sparring', 'plaudern', 'ball', 'blick', 'bluete', 'wechsel']) card(EVENT_LABELS[id], '', null, () => D.startEvent(id), 'text');
+      for (const id of ['drohnen', 'schwarm', 'viren', 'gang', 'bots', 'kenzo', 'training', 'luke', 'system', 'besuch', 'sparring', 'plaudern', 'ball', 'blick', 'bluete', 'wechsel']) card(EVENT_LABELS[id], '', null, () => D.startEvent(id), 'text');
       card('Alles aufräumen', 'Gegner & Spielzeug weg', null, () => W.clearAll(), 'text warn');
     } else if (this.tab === 'cast') {
       const modes = [['shadepi', 'Shadepi', 'nur er (mit Besuchen)'], ['raven', 'Raven', 'nur sie (mit Besuchen)'], ['beide', 'Beide', 'immer zusammen'], ['wechselnd', 'Abwechselnd', 'Schichtwechsel & Besuche']];
@@ -158,6 +158,8 @@ class UI {
     toggle('Kino-Effekte', 'cinematic');
     toggle('Bildschirmschäden', 'screenDamage');
     toggle('Fenster beklettern', 'climbWindows');
+    toggle('Arcade-Kampfstil (NEON KOMBAT)', 'arcadeStyle');
+    toggle('Drohne & Naniten', 'companions');
     if (W.layoutDisplays > 1 || W.terrain.screens.length > 1) toggle('Auf allen Monitoren laufen', 'allScreens');
     toggle('Sprechblasen', 'bubbles');
     toggle('Kampfmusik', 'music');

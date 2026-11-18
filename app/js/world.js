@@ -10,6 +10,7 @@ class World {
     this.terrain = new Terrain();
     this.fx = new FX(this);
     this.bubbles = new Bubbles(this);
+    this.companions = new Companions(this);
     this.cinema = new Cinema(this);
     this.heroes = [];
     this.enemies = [];
@@ -49,6 +50,9 @@ class World {
     if (e.boss) {
       this.cinema.slowmo(0.15, 1.6); this.cinema.letterbox(3.5); this.cinema.flash('#ffffff', 0.35); this.cinema.shake(12, 0.8);
       setTimeout(() => this.cinema.card(`${e.displayName.toUpperCase()} BESIEGT`, 'ORDEN DES WEISSEN DRACHEN · SIEG', COLORS.amber, 3), 700);
+    } else if (e.spar) {
+      this.cinema.slowmo(0.25, 0.8); this.cinema.letterbox(2.4);
+      setTimeout(() => this.cinema.card('SPARRING BEENDET', 'SHADEPI GEWINNT GEGEN KENZŌ', COLORS.amber, 2.4, { small: true }), 450);
     } else if (!left.length && this.fightKind) {
       this.cinema.slowmo(0.2, 0.9); this.cinema.letterbox(2.4); this.cinema.flash('#ffffff', 0.15);
       const secs = Math.round(this.time - this.stats.fightStart);
@@ -68,6 +72,7 @@ class World {
     // Flächen von Kisten, Automaten …
     this.terrain.dynamic = this.items.map((i) => i.surface()).filter(Boolean);
     for (const h of this.heroes) h.update(dt);
+    this.companions.update(dt);
     if (this.duel) this.duel.update(dt);
     for (const e of this.enemies) e.update(dt);
     for (const i of this.items) i.update(dt);
@@ -110,6 +115,7 @@ class World {
     const vis = (e) => v.home && !this.views ? true : e.x > v.x - pad && e.x < v.x + v.w + pad && e.y > v.y - pad && e.y < v.y + v.h + pad * 2;
     for (const a of actors) if (vis(a)) a.draw(ctx);
     for (const e of this.enemies) if (e.flying && vis(e)) e.draw(ctx);
+    this.companions.draw(ctx);
     for (const p of this.projectiles) p.draw(ctx);
     if (this.duel && v.home) this.duel.drawWorld(ctx);
     this.fx.draw(ctx);
@@ -167,7 +173,7 @@ class World {
     const T = this.terrain, u = this.u;
     const side = opts.side ?? (chance(0.5) ? -1 : 1);
     let e;
-    const ground = ['punk', 'shooter', 'jackal'].includes(type);
+    const ground = ['punk', 'shooter', 'jackal', 'kenzo'].includes(type);
     if (ground) {
       e = makeEnemy(this, type, side < 0 ? -50 : T.W + 50, T.floorY);
       e.noClamp = true; e.land(T.surfaces[0], 0); e.facing = -side;

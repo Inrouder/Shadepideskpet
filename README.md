@@ -21,6 +21,9 @@ Ein Desktop-Maskottchen im Stil von **[ShadepiRPG](https://github.com/Inrouder/S
   - **Raven:** Impulspistole (auch aus der Hocke), Kettenblitz gegen Viren, **Drohnen-Hack** (die Drohne kämpft dann für sie), Störsignal gegen schwere Gegner.
   - **Doppelschlag:** Raven blockiert einen schweren Gegner, Shadepi vollendet.
   - Werden die Helden besiegt, gehen sie nur kurz in die Knie und regenerieren (Heiligtum bzw. Neustart).
+  - **NEON-KOMBAT-Stil:** Sobald es zur Sache geht, kämpfen Shadepi und Raven mit den neuen Arcade-Posen aus ShadepiRPG (Kampfhaltung, Schlag, Tritt, Spezialtechnik, Block, Treffer, liegender K.O., Siegerpose). Punks, Wachen und Chrome Jackal haben dieselben 16-Posen-Blätter: Punk Rot mit Schlagserie, Punk Grün und Punk Violett schießen (Geschoss bzw. Violettplasma), Punk Ocker und Jackal schlagen mit Schockwelle auf den Boden, die Wachen feuern Salven, und alle können blocken. Treffer- und EMP-Effekte kommen aus dem neuen Effektblatt.
+  - **Begleiter:** Ravens **Drohne** schwebt im Kampf hinter ihr und schießt mit, Shadepis **Nanitenschwarm** kreist um ihn und sticht in Gegner. Ab und zu zeigen die beiden ihre Begleiter auch einfach so vor.
+  - **Kenzō fordert heraus:** Manchmal kommt Kenzō für ein Sparring mit Shadepi vorbei, blockt viel, verneigt sich am Ende und zieht weiter.
 - **Mehrere Monitore:** Shadepi und Raven laufen über **alle Bildschirme**. Sie wechseln über die Taskleiste hinüber, fallen auf einen tieferen Nachbarboden oder springen (Schattensprung/Greifhaken) auf einen höheren, klettern dort an Fenstern hoch, und du kannst sie mit der Maus von einem Monitor auf den anderen ziehen. Szenen, Kämpfe, Erinnerungen und das Dojo spielen auf dem **Heimbildschirm** – wer gerade drüben ist, kommt per Schattensprung zurück. Läuft auf einem Monitor ein Vollbildprogramm, bleibt er frei.
 - **Eigenleben:** Shadepi **trainiert** selbstständig, schlägt dabei manchmal versehentlich ein **Loch in den Bildschirm** und flickt es danach mit **Klebeband**. Raven öffnet ab und zu eine **Wartungsluke** im Bildschirm, scannt, löst die Schrauben und **verkabelt die Leitungen neu**, ARToS meldet „Signal 100 Prozent“. Dazu kommen Sparring (Shadepi pariert Ravens Schüsse), Gespräche zwischen den beiden, Ballspiel, Nickerchen und Kommentare zu deinen Fenstertiteln.
 
@@ -49,7 +52,7 @@ Erscheint Shadepi, schaut Raven ihn oft an und es steigen kleine Herzen auf („
 
 ## Dojo: Kämpf selbst gegen Shadepi
 
-Menü → Szenen → **Dojo**, im Tray **„Dojo: Gegen Shadepi kämpfen“** oder **Strg+Alt+D**. Du wählst einen seiner vier **Ordensbrüder** – mit ihren echten Figuren aus ShadepiRPG (Stand, Laufen und die ganze Kampffolge) – und eine Schwierigkeit. Gekämpft wird auf dem Bildschirmboden, zwei Gewinnrunden, 75 Sekunden pro Runde.
+Menü → Szenen → **Dojo**, im Tray **„Dojo: Gegen Shadepi kämpfen“** oder **Strg+Alt+D**. Du wählst einen von **13 Kämpfern** – seine vier **Ordensbrüder** oder einen der neun Kämpfer aus **NEON KOMBAT** (Raven, Kenzō, Chrome Jackal, vier Punks und zwei Wachen) – und eine Schwierigkeit. Alle kämpfen mit ihren echten Figuren aus ShadepiRPG; auch Shadepi selbst nutzt im Dojo seine Arcade-Posen. Die Auswahl zeigt den gewählten Kämpfer in Bewegung. Gekämpft wird auf dem Bildschirmboden, zwei Gewinnrunden, 75 Sekunden pro Runde.
 
 | Ordensbruder | Waffe | Stärke | Spezialtechnik |
 | --- | --- | --- | --- |
@@ -57,6 +60,19 @@ Menü → Szenen → **Dojo**, im Tray **„Dojo: Gegen Shadepi kämpfen“** od
 | **Roboterkopf** | Kampfstab | größte Reichweite, zäh | **Stabsturm** – Sprung mit Bodenschlag-Schockwelle |
 | **Ly** | weiße Lichtklinge | am schnellsten, wenig Leben | **Weißer Schatten** – Teleport hinter Shadepi, nicht blockbar |
 | **MG-Krieger** | schweres MG | Fernkampf, Panzerung, Schulterstoß | **Sperrfeuer** – 14 Schuss am Stück |
+
+| NEON KOMBAT | Waffe | Stärke | Spezialtechnik |
+| --- | --- | --- | --- |
+| **Raven** | Impulspistole & Hack | sehr schnell | **Hack-Impuls** – Datenstoß aus der offenen Hand |
+| **Kenzō** | Fäuste | ausgewogen | **Drachenhagel** – drei Treffer im Vorstoß |
+| **Chrome Jackal** | Chromfäuste | Panzerung, viel Leben | **Chromfaust** – Bodenschlag im Umkreis |
+| **Punk Rot** | Schlagring | Kombos | **Schlagserie** – vier Treffer |
+| **Punk Grün** | Revolver | Reichweite | **Geschoss** |
+| **Punk Violett** | Plasmawerfer | größte Reichweite | **Violettplasma** – langsame, schwere Kugel |
+| **Punk Ocker** | Keule | zäh | **Keulenhieb** – Bodenschlag |
+| **Wache Violett / Cyan** | Gewehr | Fernkampf | **Salve** – fünf Schuss |
+
+In der Auswahl: Pfeile/WASD wählen, **Q/Tab** (Controller LB/RB) wechselt die Schwierigkeit, Enter/A startet.
 
 | Tastatur & Maus | Controller | |
 | --- | --- | --- |
@@ -111,7 +127,7 @@ Neue Versionen entstehen automatisch: Wird `version` in `package.json` erhöht u
 - **Gegner:** einzelne Drohnen, Viren, Cyberpunks, Schützen, Kampfbots sowie beide Bosse.
 - **Szenen:** das **Dojo** und jedes automatische Ereignis lassen sich direkt starten.
 - **Figuren:** Modus wählen, Partner rufen, Schichtwechsel.
-- **System:** Größe, Lautstärke, Aktivität (Ruhig/Normal/Chaos), Kino-Effekte, Bildschirmschäden, Fensterklettern, Sprechblasen, Kampfmusik, bei Vollbild ausblenden, Ruhemodus, Beenden.
+- **System:** Arcade-Kampfstil und Begleiter (an/aus), Größe, Lautstärke, Aktivität (Ruhig/Normal/Chaos), Kino-Effekte, Bildschirmschäden, Fensterklettern, Sprechblasen, Kampfmusik, bei Vollbild ausblenden, Ruhemodus, Beenden.
 
 Einstellungen werden gespeichert. Über das Tray-Menü lässt sich außerdem **„Mit Windows starten“** einschalten. Bei mehreren Monitoren gibt es dort **„Auf allen Monitoren laufen“** (auch im Menü unter System) und die Wahl des **Heimbildschirms**.
 
@@ -144,6 +160,12 @@ Alles unter `app/assets/` stammt aus **ShadepiRPG** und wird dort nicht verände
 
 ```bash
 python tools/build_assets.py ../ShadepiRPG
+```
+
+Die NEON-KOMBAT-Kämpfer, Ravens Drohne, Shadepis Naniten, das Effektblatt und die Ordensbrüder kommen aus einem eigenen Schritt:
+
+```bash
+python tools/build_arcade.py ../ShadepiRPG
 ```
 
 Das Skript liest nur, schneidet Requisiten und FX aus den Atlanten, misst die Fußpunkte der Kampfposen und schreibt `app/assets/manifest.js`. Die Sprechblasen, Löcher, Klebeband, Wartungsluke, Projektile und kleinen Power-up-Symbole werden zur Laufzeit gezeichnet.

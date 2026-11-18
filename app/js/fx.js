@@ -71,6 +71,13 @@ class FX {
     this.sparks(x, y, COLORS.amber, 18, 520);
     this.add({ type: 'strip', img: 'smoke', x: x + rnd(-10, 10), y: y - 20 * scale, vx: 0, vy: -30, g: 0, life: 1.1, frames: 4, scale: 0.7 * scale, alpha: 0.7 });
   }
+  // Bild aus dem NEON-KOMBAT-Effektblatt; anim=true spielt die vier Phasen einer Zeile ab
+  sheetFx(col, row, x, y, size, life = 0.3, o = {}) {
+    if (!IMG.afx) return;
+    this.add({ type: 'sheet', x, y, col, row, size, life, anim: !!o.anim, rot: o.rot || 0, flip: !!o.flip, vx: o.vx || 0, vy: o.vy || 0, g: 0, layer: o.layer });
+  }
+  hitBurst(x, y, size) { this.sheetFx(0, 2, x, y, size, 0.28, { anim: true, rot: rnd(-0.4, 0.4) }); }
+  empBurst(x, y, size) { this.sheetFx(0, 3, x, y, size, 0.5, { anim: true }); }
   ring(x, y, color, r1 = 80, life = 0.35, w = 3) { this.add({ type: 'ring', x, y, life, r0: 4, r1, color, w }); }
   slash(x, y, dir, color = COLORS.red, size = 1, opts = {}) {
     this.add({ type: 'slash', x, y, dir, color, size, life: opts.life || 0.22, a0: opts.a0 ?? -1.25, a1: opts.a1 ?? 1.1, w: opts.w || 7 });
@@ -137,6 +144,12 @@ function drawParticle(ctx, p, world) {
       ctx.translate(p.x, p.y); ctx.rotate(p.rot);
       ctx.fillStyle = 'rgba(200,240,255,0.55)'; ctx.strokeStyle = 'rgba(230,250,255,0.9)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(-p.size, -p.size * 0.4); ctx.lineTo(p.size, 0); ctx.lineTo(-p.size * 0.3, p.size * 0.7); ctx.closePath(); ctx.fill(); ctx.stroke();
+      break;
+    }
+    case 'sheet': {
+      const col = p.anim ? Math.min(3, Math.floor(k * 4)) : p.col;
+      ctx.globalAlpha = p.anim ? 1 : Math.min(1, (1 - k) * 2.5);
+      drawArcadeFx(ctx, col, p.row, p.x, p.y, p.size, { rot: p.rot, flip: p.flip });
       break;
     }
     case 'strip': {

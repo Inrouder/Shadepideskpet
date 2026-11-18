@@ -6,7 +6,7 @@ const DEFAULT_SETTINGS = {
   mode: 'wechselnd', size: 0.72, volume: 0.55, activity: 'normal', cinematic: true, screenDamage: true, music: false,
   bubbles: true, hideFullscreen: true, climbWindows: true, display: 0, dock: true, paused: false, debug: false,
   reminders: [], chime: false, breakEvery: 0, drinkEvery: 0, gamePause: true, gameOwn: [], gameIgnore: [], sysReports: true, romance: true,
-  dojo: {}, allScreens: true,
+  dojo: {}, allScreens: true, arcadeStyle: true, companions: true,
 };
 
 // ---------------------------------------------------------------- Browser-Vorschau

@@ -53,11 +53,12 @@ class Enemy extends Entity {
     this.tickTimers(dt);
     this.life += dt;
     this.animT += dt;
+    if (this.dead && this.sparDone) { this.dyingT += dt; this.updateSparExit(dt); return; }
     if (this.dead) {
       this.dyingT += dt;
       this.walkVx = 0;
       if (!this.flying) this.physics(dt);
-      if (this.dyingT > 0.7) this.removed = true;
+      if (this.dyingT > (this.linger || 0.7)) this.removed = true;
       return;
     }
     if (this.dragged) return;
@@ -89,7 +90,20 @@ class Enemy extends Entity {
   deathAlpha() { return this.dead ? Math.max(0, 1 - this.dyingT / 0.7) : 1; }
 }
 
-// ------------------------------------------------------------ Bodengegner mit Heldenatlas
+// ------------------------------------------------------------ Bodengegner (NEON-KOMBAT-Figuren)
+// Punks, Wachen und Chrome Jackal benutzen ihre 16-Posen-Blätter aus ShadepiRPG:
+// Gehen, Schlag, Tritt, Spezialtechnik, Block, Treffer und echter liegender K.O.
+const STREET_SPECIAL = {
+  'punk-1': 'flurry',   // Punk Rot: Schlagserie
+  'punk-2': 'shot',     // Punk Grün: Geschoss
+  'punk-3': 'plasma',   // Punk Violett: Violettplasma
+  'punk-4': 'slam',     // Punk Ocker: Keulenhieb
+  'shooter-violet': 'burst', 'shooter-visor': 'burst', // Wachen: Salve
+  jackal: 'slam',       // Chrome Jackal: Chromfaust
+  kenzo: 'flurry',      // Kenzō: Drachenhagel
+};
+const STREET_NAMES = { kenzo: 'Kenzō', 'punk-1': 'Punk Rot', 'punk-2': 'Punk Grün', 'punk-3': 'Punk Violett', 'punk-4': 'Punk Ocker', 'shooter-violet': 'Wache Violett', 'shooter-visor': 'Wache Cyan', jackal: 'Chrome Jackal' };
+
 class StreetEnemy extends Enemy {
   constructor(world, x, y, o) {
     super(world, x, y, o);
@@ -101,19 +115,69 @@ class StreetEnemy extends Enemy {
     this.w = 34 * this.u * this.scaleMul; this.h = 86 * this.u * this.scaleMul;
     this.mass = o.mass || 1;
     this.dashT = 0; this.windup = 0;
+    this.special = STREET_SPECIAL[this.sprite] || 'flurry';
+    this.specialCd = rnd(3, 6);
+    this.atk = 'punch';
+    this.landT = 0;
+    this.linger = hasArcade(this.sprite) ? 1.15 : 0.7;
+    if (!o.name || o.name === 'Straßenkämpfer' || o.name === 'Schütze') this.displayName = STREET_NAMES[this.sprite] || o.name;
   }
+  get arcade() { return hasArcade(this.sprite); }
+  // Block mit der echten Abwehrpose (nur von vorn, nicht während eines eigenen Angriffs)
+  onBeforeHit(amount, src, opts) {
+    if (!this.arcade || this.attacking > 0 || this.stun > 0.05 || !this.ground || !src) return true;
+    const chanceBlock = this.spar ? 0.38 : this.boss ? 0.15 : 0.08;
+    if (sign(src.x - this.x) !== this.facing || !chance(chanceBlock)) return true;
+    this.blockT = 0.3;
+    const u = this.u;
+    this.world.fx.sparks(this.x + this.facing * 24 * u, this.y - 60 * u, COLORS.cyan, 8, 260);
+    this.world.fx.label(this.x, this.y - 120 * u, 'BLOCK', COLORS.cyan, 13, 0.5);
+    Sound.play('hit', 0.45, 1.6);
+    this.vx = -this.facing * 120 * u;
+    return false;
+  }
+  findTarget() { if (this.spar) { const sh = this.world.hero('shadepi'); return sh && !sh.absent && !sh.ko ? sh : null; } return super.findTarget(); }
+
+  // Sparringspartner (Kenzō): geht nicht K.O. vom Platz, sondern verneigt sich und geht
+  die(src) {
+    if (!this.spar) return super.die(src);
+    this.dead = true; this.dyingT = 0; this.sparDone = true; this.linger = 99; this.noClamp = true;
+    this.world.onEnemyKilled(this, src);
+    Sound.play('calib_accept', 0.5);
+    setTimeout(() => this.talk(pick(['Gut gekämpft, Shadepi. Nächstes Mal gewinne ich.', 'Deine Deckung ist besser geworden.', 'Genug für heute. Der Drache ruht.']), true), 900);
+  }
+  updateSparExit(dt) {
+    const T = this.world.terrain, u = this.u;
+    if (this.dyingT < 2.6) { this.walkVx = 0; this.vx *= 0.9; this.physics(dt); return; }
+    const dir = this.x < T.W / 2 ? -1 : 1;
+    this.facing = dir; this.walkVx = dir * this.speed * u; if (this.ground) this.vx = this.walkVx;
+    this.physics(dt);
+    if (this.x < T.minX - 80 || this.x > T.maxX + 80) this.removed = true;
+  }
+  onLand(impact) { super.onLand(impact); if (impact > 400) this.landT = 0.18; }
   ai(dt) {
     const W = this.world, u = this.u, t = this.target;
+    this.specialCd -= dt; this.landT -= dt; this.blockT = (this.blockT || 0) - dt;
+    if (this.blockT > 0) { this.walkVx = 0; return; }
     if (this.attacking > 0) {
       this.attacking -= dt; this.walkVx = 0;
+      const k = 1 - this.attacking / this.attackDur;
+      if (this.atk === 'special' && this.special === 'flurry') {
+        // Schlagserie: drei Treffer
+        const n = Math.floor(k * 4);
+        if (n >= 1 && n <= 3 && n > (this.hits || 0)) { this.hits = n; this.meleeStrike(t, Math.ceil(this.dmg * 0.6), 160, 0); }
+        return;
+      }
+      if (this.atk === 'special' && this.special === 'burst') {
+        const n = Math.floor(k * 5);
+        if (n >= 1 && n <= 4 && n > (this.hits || 0)) { this.hits = n; this.fire('bullet', 0.1); }
+        return;
+      }
       if (!this.struck && this.attacking < this.attackDur * 0.55) {
         this.struck = true;
-        if (this.ranged) this.fire();
-        else if (t && Math.abs(t.x - this.x) < 72 * u * this.scaleMul && Math.abs(t.y - this.y) < 40 * u) {
-          damage(W, t, this.dmg, this, { dir: this.facing, knock: this.boss ? 420 : 220, up: this.boss ? 200 : 0, color: COLORS.warn });
-          Sound.play(pick(['enemy_attack_0', 'enemy_attack_1']), 0.5);
-          W.cinema.shake(this.boss ? 6 : 2, 0.15);
-        } else Sound.play('slash', 0.3, 0.8);
+        if (this.atk === 'special') this.doSpecial(t);
+        else if (this.ranged && this.atk === 'shoot') this.fire('bullet');
+        else this.meleeStrike(t, this.atk === 'kick' ? Math.round(this.dmg * 1.3) : this.dmg, this.atk === 'kick' ? 360 : 220, this.atk === 'kick' ? 140 : 0);
       }
       return;
     }
@@ -122,12 +186,17 @@ class StreetEnemy extends Enemy {
     const dx = t.x - this.x, ad = Math.abs(dx);
     this.facing = sign(dx);
     if (this.boss && this.attackCd < -2 && ad > 200 * u && this.ground && t.wid === this.wid) { this.startDash(); return; }
+    // Fernkampf-Spezial (Geschoss/Plasma) aus mittlerer Entfernung
+    if ((this.special === 'shot' || this.special === 'plasma') && this.specialCd <= 0 && ad > 160 * u && ad < 560 * u && Math.abs(t.y - this.y) < 200 * u) { this.startAttack(0.7, 'special'); return; }
     if (this.ranged) {
       const want = 290 * u;
       if (ad > want + 120 * u) this.walkVx = sign(dx) * this.speed * u;
       else if (ad < want - 120 * u) this.walkVx = -sign(dx) * this.speed * u * 0.7;
       else this.walkVx = 0;
-      if (this.attackCd <= 0 && ad < 700 * u) this.startAttack(0.6);
+      if (this.attackCd <= 0 && ad < 700 * u) {
+        if (ad < 80 * u) this.startAttack(0.45, 'kick');
+        else this.startAttack(this.specialCd <= 0 ? 0.9 : 0.6, this.specialCd <= 0 ? 'special' : 'shoot');
+      }
       return;
     }
     if (t.wid !== this.wid && !t.flying) {
@@ -137,20 +206,56 @@ class StreetEnemy extends Enemy {
       return;
     }
     if (ad > 56 * u * this.scaleMul) this.walkVx = sign(dx) * this.speed * u;
-    else { this.walkVx = 0; if (this.attackCd <= 0) this.startAttack(this.boss ? 0.7 : 0.5); }
+    else {
+      this.walkVx = 0;
+      if (this.attackCd <= 0) {
+        if (this.specialCd <= 0 && (this.special === 'slam' || this.special === 'flurry')) this.startAttack(this.special === 'flurry' ? 0.8 : 0.85, 'special');
+        else this.startAttack(this.boss ? 0.7 : 0.5, chance(0.35) ? 'kick' : 'punch');
+      }
+    }
   }
-  startAttack(dur) {
-    this.attacking = this.attackDur = dur; this.struck = false; this.animT = 0;
+  startAttack(dur, kind = 'punch') {
+    this.attacking = this.attackDur = dur; this.struck = false; this.animT = 0; this.atk = kind; this.hits = 0;
     this.attackCd = this.ranged ? rnd(1.2, 2.2) : rnd(0.9, 1.6) * (this.boss ? 0.8 : 1);
+    if (kind === 'special') {
+      this.specialCd = rnd(5, 9) * (this.boss ? 0.7 : 1);
+      if (this.special === 'slam') { this.world.fx.ring(this.x, this.y - 50 * this.u, this.boss ? COLORS.magenta : COLORS.amber, 50 * this.u, 0.4, 3); Sound.play('drive_laser_warn', 0.35, 1.3); }
+    }
   }
-  fire() {
+  meleeStrike(t, dmg, knock, up) {
+    const W = this.world, u = this.u;
+    if (t && Math.abs(t.x - this.x) < 76 * u * this.scaleMul && Math.abs(t.y - this.y) < 40 * u) {
+      damage(W, t, dmg, this, { dir: this.facing, knock: this.boss ? knock * 1.8 : knock, up: this.boss ? Math.max(up, 200) : up, color: COLORS.warn });
+      Sound.play(pick(['enemy_attack_0', 'enemy_attack_1']), 0.5);
+      W.cinema.shake(this.boss ? 6 : 2, 0.15);
+    } else Sound.play('slash', 0.3, 0.8);
+  }
+  doSpecial(t) {
+    const W = this.world, u = this.u;
+    if (this.special === 'shot') this.fire('bullet');
+    else if (this.special === 'plasma') this.fire('plasma');
+    else if (this.special === 'slam') {
+      // Bodenschlag mit Schockwelle
+      const r = (this.boss ? 170 : 120) * u;
+      W.fx.add({ type: 'shockwave', x: this.x + this.facing * 30 * u, y: this.y, r, life: 0.45, color: this.boss ? COLORS.magenta : COLORS.amber });
+      W.fx.dust(this.x + this.facing * 30 * u, this.y, 12, 1.2 * u);
+      W.cinema.shake(this.boss ? 9 : 5, 0.3);
+      Sound.play('drive_explosion', 0.45, this.boss ? 0.8 : 1.2);
+      for (const h of enemiesOf(W, 'enemy')) if (h.ground && Math.abs(h.x - this.x) < r && Math.abs(h.y - this.y) < 50 * u) damage(W, h, Math.round(this.dmg * 1.4), this, { dir: sign(h.x - this.x) || this.facing, knock: 380, up: 320, color: COLORS.warn });
+    }
+  }
+  fire(kind = 'bullet', spread = 0.06) {
     const W = this.world, u = this.u, t = this.target;
     if (!t) return;
-    const ox = this.x + this.facing * 40 * u, oy = this.y - 58 * u;
-    let a = Math.atan2(t.y - t.h * 0.5 - oy, t.x - ox) + rnd(-0.06, 0.06);
-    W.projectiles.push(new Projectile(W, { kind: 'bullet', x: ox, y: oy, vx: Math.cos(a) * 720 * u, vy: Math.sin(a) * 720 * u, team: 'enemy', owner: this, dmg: this.dmg, r: 5 * u, life: 1.6, color: COLORS.amber }));
-    W.fx.add({ type: 'strip', img: 'muzzle', x: ox, y: oy, life: 0.08, frames: 4, scale: 0.3 * u });
-    Sound.play('drive_shot', 0.4, rnd(0.9, 1.1));
+    const m = this.arcade ? arcadeEmitter(this.sprite, this.x, this.y, this.S * this.scaleMul, this.facing) : { x: this.x + this.facing * 40 * u, y: this.y - 58 * u };
+    const ox = m.x, oy = m.y;
+    let a = Math.atan2(t.y - t.h * 0.5 - oy, t.x - ox) + rnd(-spread, spread);
+    const base = this.facing > 0 ? 0 : Math.PI;
+    a = base + clamp(Math.atan2(Math.sin(a - base), Math.cos(a - base)), -0.6, 0.6);
+    const plasma = kind === 'plasma';
+    W.projectiles.push(new Projectile(W, { kind, x: ox, y: oy, vx: Math.cos(a) * (plasma ? 560 : 720) * u, vy: Math.sin(a) * (plasma ? 560 : 720) * u, team: 'enemy', owner: this, dmg: plasma ? this.dmg + 2 : this.dmg, r: (plasma ? 10 : 5) * u, life: 1.6, color: plasma ? COLORS.magenta : COLORS.amber }));
+    if (!plasma) W.fx.add({ type: 'strip', img: 'muzzle', x: ox, y: oy, life: 0.08, frames: 4, scale: 0.3 * u });
+    Sound.play(plasma ? 'electric' : 'drive_shot', 0.4, rnd(0.9, 1.1));
   }
   startDash() {
     this.dashT = 1.2; this.windup = 0.5; this.attackCd = rnd(2, 4);
@@ -167,13 +272,43 @@ class StreetEnemy extends Enemy {
     for (const h of enemiesOf(W, 'enemy')) if (!this.hitSet?.has(h) && rectsOverlap(this.bounds(), h.bounds())) { (this.hitSet = this.hitSet || new Set()).add(h); damage(W, h, 12, this, { dir: this.facing, knock: 600, up: 350, color: COLORS.warn }); W.cinema.shake(8, 0.3); }
     if (this.dashT <= 0 || (this.ground && (this.x <= this.ground.x1 + 30 || this.x >= this.ground.x2 - 30))) { this.dashT = 0; this.walkVx = 0; this.hitSet = null; }
   }
+  arcadeFrame() {
+    if (this.sparDone) return this.dyingT < 0.25 ? AP.hurt : this.dyingT < 1.3 ? AP.land : this.dyingT < 2.6 ? AP.victory : AP_WALK[Math.floor(this.animT * 8) % 4];
+    if (this.dragged || (this.stun > 0.05 && !this.dead)) return AP.hurt;
+    if (this.dead) return this.dyingT < 0.12 ? AP.hurt : AP.ko;
+    if (this.blockT > 0) return AP.block;
+    if (this.windup > 0) return AP.special0;
+    if (this.attacking > 0) {
+      const k = 1 - this.attacking / this.attackDur;
+      if (this.atk === 'special') {
+        if (this.special === 'flurry' || this.special === 'burst') return k < 0.2 ? AP.special0 : (Math.floor(k * 12) % 2 ? AP.special1 : AP.special0);
+        return k < 0.45 ? AP.special0 : AP.special1;
+      }
+      if (this.atk === 'shoot') return k < 0.45 ? AP.special0 : AP.special1;
+      if (this.atk === 'kick') return k < 0.45 ? AP.kick0 : AP.kick1;
+      return k < 0.45 ? AP.punch0 : AP.punch1;
+    }
+    if (!this.ground) return AP.jump;
+    if (this.landT > 0) return AP.land;
+    if (Math.abs(this.vx) > 15) return AP_WALK[Math.floor(this.animT * (this.dashT > 0 ? 16 : 8)) % 4];
+    return Math.floor(this.animT * 2.5) % 2 ? AP.breath : AP.ready;
+  }
   draw(ctx) {
     const S = this.S * this.scaleMul;
-    const side = this.facing < 0 ? DIR.left : DIR.right;
-    const img = IMG[this.sprite];
     this.drawShadow(ctx, 20 * this.u * this.scaleMul);
     const o = { flash: this.flash > 0 ? 0.8 : 0, alpha: this.deathAlpha() };
     if (this.windup > 0) { o.tint = COLORS.magenta; o.tintAmt = 0.4; }
+    if (this.arcade) {
+      if (this.sparDone) o.alpha = 1;
+      else if (this.dead) o.alpha = this.dyingT < 0.5 ? 1 : Math.max(0, 1 - (this.dyingT - 0.5) / 0.6);
+      o.flip = this.facing < 0;
+      if (this.dragged) { o.rot = this.swing || 0; o.pivotY = 78 * this.u; }
+      drawArcade(ctx, this.sprite, this.arcadeFrame(), this.x, this.y, S, o);
+      this.drawHp(ctx);
+      return;
+    }
+    const side = this.facing < 0 ? DIR.left : DIR.right;
+    const img = IMG[this.sprite];
     if (this.dead) { o.tint = '#ff3150'; o.tintAmt = Math.min(0.7, this.dyingT); }
     if (this.dragged) drawAtlas(ctx, img, GROUP.hit, DIR.down, 0, this.x, this.y, S, o);
     else if (this.dead || this.stun > 0.05) drawAtlas(ctx, img, GROUP.hit, side, 0, this.x, this.y, S, o);
@@ -505,7 +640,8 @@ function makeEnemy(world, type, x, y) {
   switch (type) {
     case 'punk': return new StreetEnemy(world, x, y, { kind: 'punk', sprite: pick(['punk-1', 'punk-2', 'punk-3', 'punk-4']), hp: 7, speed: rnd(110, 140), dmg: 5, name: 'Straßenkämpfer', color: COLORS.amber });
     case 'shooter': return new StreetEnemy(world, x, y, { kind: 'shooter', sprite: pick(['shooter-visor', 'shooter-violet']), hp: 6, ranged: true, speed: 90, dmg: 4, name: 'Schütze', color: COLORS.amber });
-    case 'jackal': return new StreetEnemy(world, x, y, { kind: 'jackal', sprite: 'jackal', hp: 70, speed: 105, dmg: 9, boss: true, scaleMul: 1.18, mass: 2.5, name: 'Chrome Jackal', color: COLORS.magenta });
+    case 'jackal': return new StreetEnemy(world, x, y, { kind: 'jackal', sprite: 'jackal', hp: 70, speed: 105, dmg: 9, boss: true, scaleMul: hasArcade('jackal') ? 1.06 : 1.18, mass: 2.5, name: 'Chrome Jackal', color: COLORS.magenta });
+    case 'kenzo': { const e = new StreetEnemy(world, x, y, { kind: 'kenzo', sprite: 'kenzo', hp: 70, speed: 160, dmg: 3, mass: 1.3, name: 'Kenzō', color: COLORS.amber }); e.spar = true; e.voiceColor = COLORS.amber; return e; }
     case 'bot': return new Bot(world, x, y);
     case 'drone': return new Drone(world, x, y);
     case 'virus': return new Virus(world, x, y, false);

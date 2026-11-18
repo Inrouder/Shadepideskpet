@@ -177,7 +177,7 @@ body { font-family: 'ShadepiPixel', monospace; color: var(--text); }
 #dojo { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 #dojo.hidden { display: none; }
 #dojo .dojo-panel { position: relative; width: auto; max-width: min(860px, 96vw); max-height: 92vh; pointer-events: auto; }
-.dojo-select { width: 820px !important; }
+.dojo-select { width: 1000px !important; }
 .dojo-pause { width: 440px !important; }
 .dojo-result { width: 560px !important; }
 .dojo-pause .dj-menu, .dojo-result .dj-menu { min-width: 0; }
@@ -185,23 +185,32 @@ body { font-family: 'ShadepiPixel', monospace; color: var(--text); }
 .dj-head { display: flex; justify-content: space-between; align-items: flex-start; margin: -10px 0 8px; }
 .dj-head .title { font-size: 30px; color: #f4f0e4; text-shadow: 2px 0 0 rgba(255,49,80,0.6), -2px 0 0 rgba(98,227,238,0.6); letter-spacing: 1px; }
 .dj-head .sys { font-family: Silkscreen, monospace; font-size: 8px; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
-.bros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.bro { --c: var(--cyan); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 6px 8px; cursor: pointer;
-  background: rgba(13,20,32,0.88); border: 1px solid #253043; color: var(--text); font-family: ShadepiPixel, monospace; position: relative; transition: transform 0.1s; }
-.bro canvas { width: 120px; height: 132px; background: radial-gradient(circle at 50% 70%, rgba(255,255,255,0.05), transparent 70%); }
-.bro .nm { font-size: 22px; color: #fff; line-height: 20px; }
-.bro .wp { font-family: Silkscreen, monospace; font-size: 7px; color: var(--c); letter-spacing: 1px; margin-bottom: 4px; }
-.bro .stats { width: 100%; display: flex; flex-direction: column; gap: 2px; }
-.bro .st { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--muted); }
-.bro .st i { display: flex; gap: 2px; }
-.bro .st b { width: 9px; height: 6px; background: var(--c); box-shadow: 0 0 4px var(--c); }
-.bro .st b.off { background: #1d2635; box-shadow: none; }
-.bro .sp { margin-top: 5px; font-size: 14px; color: #fff; text-align: center; line-height: 13px; }
-.bro .sp em { font-style: normal; font-family: Silkscreen, monospace; font-size: 6px; color: var(--amber); display: block; letter-spacing: 1px; }
-.bro .sp small { display: block; font-family: Silkscreen, monospace; font-size: 6px; color: var(--muted); margin-top: 2px; line-height: 8px; }
-.bro .won { position: absolute; top: 4px; right: 4px; font-family: Silkscreen, monospace; font-size: 6px; color: var(--amber); }
+.dj-pick { display: flex; gap: 10px; align-items: stretch; }
+.dj-detail { --c: var(--cyan); width: 250px; flex: none; background: linear-gradient(180deg, color-mix(in srgb, var(--c) 14%, rgba(13,20,32,0.92)), rgba(9,13,22,0.95)); border: 1px solid var(--c); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.5), 0 0 18px color-mix(in srgb, var(--c) 25%, transparent); padding: 6px 10px 10px; display: flex; flex-direction: column; align-items: center; }
+.dj-detail canvas.big { width: 220px; height: 250px; }
+.dj-detail .info { width: 100%; }
+.dj-detail .grp { font-family: Silkscreen, monospace; font-size: 7px; color: var(--c); letter-spacing: 2px; }
+.dj-detail .nm { font-size: 26px; color: #fff; line-height: 24px; }
+.dj-detail .wp { font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); letter-spacing: 1px; margin-bottom: 6px; }
+.dj-detail .stats { display: flex; flex-direction: column; gap: 3px; }
+.dj-detail .st { display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: var(--muted); }
+.dj-detail .st i { display: flex; gap: 3px; }
+.dj-detail .st b { width: 14px; height: 7px; background: var(--c); box-shadow: 0 0 4px var(--c); }
+.dj-detail .st b.off { background: #1d2635; box-shadow: none; }
+.dj-detail .st em { font-style: normal; color: #fff; font-size: 16px; }
+.dj-detail .sp { margin-top: 8px; font-size: 17px; color: #fff; line-height: 15px; }
+.dj-detail .sp em { font-style: normal; font-family: Silkscreen, monospace; font-size: 6px; color: var(--amber); display: block; letter-spacing: 1px; margin-bottom: 2px; }
+.dj-detail .sp small { display: block; font-family: Silkscreen, monospace; font-size: 7px; color: var(--muted); margin-top: 3px; line-height: 10px; }
+.dj-detail .won2 { font-family: Silkscreen, monospace; font-size: 7px; color: var(--amber); margin-top: 6px; }
+.bros { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-content: start; }
+.bro { --c: var(--cyan); display: flex; flex-direction: column; align-items: center; padding: 4px 2px 5px; cursor: pointer; position: relative;
+  background: rgba(13,20,32,0.88); border: 1px solid #253043; color: var(--text); font-family: ShadepiPixel, monospace; transition: transform 0.08s; }
+.bro canvas { width: 100%; max-width: 84px; height: auto; aspect-ratio: 84 / 96; }
+.bro .nm { font-size: 13px; color: #fff; line-height: 13px; text-align: center; white-space: nowrap; overflow: hidden; max-width: 100%; }
+.bro .tag { font-family: Silkscreen, monospace; font-size: 5px; color: var(--c); letter-spacing: 1px; margin-top: 2px; }
+.bro .won { position: absolute; top: 3px; right: 4px; font-family: Silkscreen, monospace; font-size: 7px; color: var(--amber); }
 .bro:hover { border-color: var(--c); }
-.bro.on { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c), 0 0 18px color-mix(in srgb, var(--c) 35%, transparent); transform: translateY(-3px); background: rgba(20,28,44,0.95); }
+.bro.on { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c), 0 0 14px color-mix(in srgb, var(--c) 40%, transparent); transform: translateY(-2px); background: rgba(20,28,44,0.95); }
 .dj-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .dj-row .lbl, .dj-row .rec { font-family: Silkscreen, monospace; font-size: 8px; color: var(--muted); letter-spacing: 1px; }
 .dj-row .rec { margin-left: auto; color: var(--amber); }
@@ -234,3 +243,4 @@ body { font-family: 'ShadepiPixel', monospace; color: var(--text); }
 .dj-quote span { font-family: Silkscreen, monospace; font-size: 8px; color: var(--red); }
 .card.dojo { border-color: #5a2733; background: linear-gradient(90deg, rgba(255,49,80,0.16), rgba(13,20,32,0.85)); grid-column: 1 / -1; }
 .card.dojo:hover { border-color: var(--red); }
+#dojo .dojo-panel.dojo-select { max-width: min(1000px, 98vw); }

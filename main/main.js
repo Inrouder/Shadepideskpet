@@ -52,6 +52,8 @@ const DEFAULTS = {
   romance: true,
   dojo: {},
   allScreens: true,         // Figuren laufen über alle Monitore
+  arcadeStyle: true,        // NEON-KOMBAT-Posen im Kampf
+  companions: true,         // Ravens Drohne, Shadepis Naniten
 };
 
 let overlay = null;
@@ -247,7 +249,7 @@ function setSetting(key, value) {
 
 const EVENTS = [
   ['drohnen', 'Drohnenpatrouille'], ['schwarm', 'Drohnenschwarm'], ['viren', 'Virusausbruch'],
-  ['gang', 'Cyberpunk-Gang'], ['bots', 'Kampfbots'], ['ice', 'Boss: ICE-Wächter'], ['jackal', 'Boss: Chrome Jackal'],
+  ['gang', 'Cyberpunk-Gang'], ['bots', 'Kampfbots'], ['kenzo', 'Kenzō fordert heraus'], ['ice', 'Boss: ICE-Wächter'], ['jackal', 'Boss: Chrome Jackal'],
   ['training', 'Shadepi trainiert'], ['luke', 'Raven repariert Kabel'], ['system', 'Raven: Systembericht'], ['besuch', 'Partner kommt vorbei'], ['sparring', 'Sparring'],
   ['blick', 'Verliebter Blick'], ['bluete', 'Shadepis Lichtblüte'],
 ];
@@ -273,7 +275,7 @@ function buildTray() {
     { label: 'Ereignis starten', submenu: EVENTS.map(([id, label]) => ({ label, click: () => send('event', id) })) },
     { label: 'Aktivität', submenu: [radio('Ruhig', 'activity', 'ruhig'), radio('Normal', 'activity', 'normal'), radio('Chaos', 'activity', 'chaos')] },
     { label: 'Einstellungen', submenu: [
-      check('Kino-Effekte', 'cinematic'), check('Bildschirmschäden (Löcher, Luke)', 'screenDamage'), check('Fenster beklettern', 'climbWindows'),
+      check('Kino-Effekte', 'cinematic'), check('Bildschirmschäden (Löcher, Luke)', 'screenDamage'), check('Fenster beklettern', 'climbWindows'), check('Arcade-Kampfstil (NEON KOMBAT)', 'arcadeStyle'), check('Drohne und Naniten', 'companions'),
       check('Bei Spielen pausieren', 'gamePause'), check('Systemberichte (Raven)', 'sysReports'), check('Romantische Momente', 'romance'), check('Sprechblasen', 'bubbles'), check('Kampfmusik', 'music'), check('Bei Vollbild ausblenden', 'hideFullscreen'), check('Seitenleiste anzeigen', 'dock'),
       ...(displays.length > 1 ? [check('Auf allen Monitoren laufen', 'allScreens')] : []),
       { label: displays.length > 1 ? 'Heimbildschirm' : 'Bildschirm', submenu: displays.map((d, i) => radio(`Bildschirm ${i + 1} (${d.bounds.width}×${d.bounds.height})`, 'display', i)) },
