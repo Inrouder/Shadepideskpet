@@ -5,17 +5,14 @@
 Ein Desktop-Maskottchen im Stil von **[ShadepiRPG](https://github.com/Inrouder/ShadepiRPG)**: **Shadepi** und **Raven** leben auf deinem Bildschirm. Sie laufen über die Taskleiste, klettern an echten Fenstern hoch, stehen auf Titelleisten und fahren mit, wenn du ein Fenster verschiebst. Ab und zu greifen Drohnen, Datenviren, Cyberpunk-Gangs, Kampfbots oder sogar Bosse an. Alles läuft vollautomatisch und mit Kino-Inszenierung: Letterbox-Balken, Titelkarten, Zeitlupe beim letzten Treffer, Kamerawackeln und Trefferstopps.
 
 <!-- neueste-version:start (wird beim Veröffentlichen automatisch aktualisiert) -->
-> ### ⬇️ Neueste Version: [1.6.0](https://github.com/Inrouder/Shadepideskpet/releases/tag/v1.6.0) · 18.11.2026 · NEON KOMBAT
+> ### ⬇️ Neueste Version: [1.7.0](https://github.com/Inrouder/Shadepideskpet/releases/tag/v1.7.0) · 18.11.2026 · News & Autostart
 >
-> **[Installer herunterladen](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.6.0/Shadepi-Deskpet-1.6.0-Setup.exe)** (mit automatischen Updates) · **[Portable Version](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.6.0/Shadepi-Deskpet-1.6.0-portable.exe)** (ohne Installation) · [alle Versionen](https://github.com/Inrouder/Shadepideskpet/releases) · [Änderungen](CHANGELOG.md)
+> **[Installer herunterladen](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.7.0/Shadepi-Deskpet-1.7.0-Setup.exe)** (mit automatischen Updates) · **[Portable Version](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.7.0/Shadepi-Deskpet-1.7.0-portable.exe)** (ohne Installation) · [alle Versionen](https://github.com/Inrouder/Shadepideskpet/releases) · [Änderungen](CHANGELOG.md)
 >
-> - **Dojo mit 13 Kämpfern:** neben den vier Ordensbrüdern jetzt auch Raven, Kenzō, Chrome Jackal, Punk Rot/Grün/Violett/Ocker und Wache Violett/Cyan – jeweils mit eigener Spezialtechnik (Hack-Impuls, Drachenhagel, Chromfaust, Violettplasma, Salve …).
-> - **Shadepi kämpft im Dojo mit seinen neuen Arcade-Posen:** Block, Tritt, Spezialangriff, Siegerpose und liegender K.O.
-> - **Neue Kämpferauswahl** mit großer, animierter Vorschau; Schwierigkeit per Q/Tab bzw. LB/RB.
-> - **Desktop im NEON-KOMBAT-Stil:** Shadepi und Raven nehmen im Kampf die neuen Posen ein; Punks, Wachen und Jackal schlagen, treten, blocken, setzen Spezialtechniken ein und gehen richtig K.O.
-> - **Begleiter:** Ravens Drohne schießt mit, Shadepis Nanitenschwarm kreist um ihn und sticht zu.
-> - **Neues Ereignis:** Kenzō fordert Shadepi zum Sparring heraus.
-> - Treffer- und EMP-Effekte aus dem neuen Effektblatt; Arcade-Stil und Begleiter lassen sich abschalten.
+> - **Gaming-News:** Shadepi ruft ab und zu ein Ordens-Hologramm auf und liest die neuesten Schlagzeilen großer Spieleseiten vor (Mein-MMO, PC Games, GameStar, GamePro, PCGH, Gamereactor – oder englisch PC Gamer, IGN, Polygon, Kotaku, Rock Paper Shotgun, Eurogamer). Er kommentiert sie, Raven gibt ihren Senf dazu, und „Artikel öffnen“ bringt dich direkt zum Artikel. Neuer Menüreiter **NEWS** mit allen Meldungen, Sprache und Häufigkeit.
+> - **Autostart:** „Mit Windows starten“ jetzt auch im Menü unter System; beim ersten Start fragen Shadepi bzw. Raven einmal nach. Nach dem automatischen Start gibt es eine eigene Begrüßung.
+> - **Mehr Gespräche:** über 20 neue Dialoge zwischen Shadepi und Raven, dazu passende Gespräche nachts, morgens, nach Kämpfen, über den zweiten Monitor, das Dojo, dein zuletzt gespieltes Spiel und die News.
+> - **Menü als Fenster:** Das Menü lässt sich an der Kopfzeile verschieben, bleibt dann an seinem Platz und schließt nicht mehr von selbst. Doppelklick auf die Kopfzeile öffnet es wieder am Mauszeiger.
 <!-- neueste-version:end -->
 
 ![Drohnenschwarm: Raven übernimmt eine Drohne](docs/vorschau-drohnen.png)
