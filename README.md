@@ -105,6 +105,8 @@ In der Auswahl: Pfeile/WASD wählen, **Q/Tab** (Controller LB/RB) wechselt die S
 | E | LB / LT | Spezialtechnik (bei voller Energie) |
 | Esc | Start | Pause, Krieger wechseln, Dojo verlassen |
 
+**Kein Wehrlos-Prügeln:** Ab *Mittel* bricht Shadepi aus, wenn du ihn mit Angriffen eindeckst – kurzer Block, Teleport hinter dich, Konter. Auf *Schwer* teleportiert er sich ab Runde 3 zusätzlich: ausweichen, hinter dir auftauchen, Abstand überbrücken.
+
 Shadepi nimmt es als **Training**: Er pariert, kontert mit Kombos, Tritt, aufgeladenem Hieb, Wurfsternen, Sprungschlag und auf „Schwer“ auch mit dem Schattenschritt; MG-Kugeln schlägt er gern zurück. Dabei kommentiert er – meist spöttisch („Du triffst die Luft. Sie hat Angst.“, „Du bist kein Frosch.“), manchmal mit Lob („Saubere Parade!“, „Der Orden wäre stolz.“). Auf „Leicht“ gibt er Tipps. Raven schaut zu und feuert an. Am Ende gibt es eine Wertung (S bis D) mit Treffern, bester Kombo und Paraden; Siege und Niederlagen werden gespeichert.
 
 ### The Real Dragon
@@ -117,6 +119,8 @@ Im Dojo unter **Modus** (Taste **M**, Controller **Y**), im Menü unter Szenen o
 | **Rote Aura** | Besiegst du ihn in Runde 3, steht er wieder auf: Seine Lebensanzeige füllt sich, eine rote Flammenaura umgibt ihn. Er wirft **Ki-Kugeln**, und wo er springt und landet, **bersten Boden und Taskleiste**. |
 | **Macht des Drachen** | Übersteht er auch das, schreit er vor Wut, eine **weiß leuchtende Flammenaura** lodert auf, seine **Augen glühen rot**, er lacht: *„Nun spürst du die Macht des Drachen in mir.“* Jeder Schlag, jeder Schritt und jede Landung lässt den **Desktop reißen**, dazu Ki-Explosionen. Seine **Drachenwelle** – ein Energiestrahl, aus dem ein Drache bricht – weichst du nur mit einem **gezielten Sprung** aus (oder knapp per Ausweichen). |
 | **Finale** | Im letzten Drittel seines Lebens steigt er in die Luft, ein **Schutzschild** umgibt ihn, **Naniten fesseln** deinen Kämpfer, und über ihm wächst eine riesige Energiekugel. **Schlagtaste hämmern** (J / Linksklick, Controller X), um dich zu befreien, dann die **Aktionstaste hämmern** (E, auch K / Rechtsklick; Controller LB oder Y) für deine eigene Kugel. Beide Kugeln prallen aufeinander – drück weiter! Die Tasten werden groß eingeblendet. |
+
+**Schwierigkeit:** *Leicht* ist zum Kennenlernen. *Mittel* ist schon richtig schwer. *Schwer* ist souls-like: Ausdauerleiste (Angriffe, Ausweichen und geblockte Treffer kosten Ausdauer – ist sie leer, bricht die Deckung), verzögerte Angriffe, kleineres Paradefenster, nur halbe Heilung zwischen den Runden, und ab Runde 3 teleportiert sich Shadepi. Wer The Real Dragon auf *Schwer* besiegt, erlebt ein **geheimes Finish** und schaltet **Shadepi als Kämpfer** frei (Spezialtechnik *Schattenschnitt*; er kämpft dann gegen seinen eigenen Schatten).
 
 **Gewinnst du**, fällt Shadepi geschlagen zu Boden, rappelt sich auf und sagt: *„Arg… das war gut. Das hat noch niemand geschafft. Du hast meinen Respekt, Dragonking!“* **Verlierst du** gegen die rote Aura oder den Drachen, **zerspringt der ganze Bildschirm** – Scherben fallen heraus, „SYSTEM ZERSTÖRT“, Game Over. (Nur im Overlay: Nach dem Ergebnis ist dein Desktop natürlich wieder heil.) Titel, beste Stufe und Versuche werden gespeichert.
 

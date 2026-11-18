@@ -68,10 +68,16 @@ Object.assign(BROTHERS, {
     special: { name: 'Salve', desc: 'Fünf Schuss in schneller Folge' } }),
 });
 
+// Shadepi selbst – freigeschaltet durch einen Sieg in „The Real Dragon“ auf Schwer
+BROTHERS.shadepi = ARC({ name: 'Shadepi', title: 'Shadepi', weapon: 'Rote Klinge & Naniten', color: '#ff3150', hp: 115, speed: 275, jump: 760, w: 34, group: 'secret', unlock: true,
+  stats: { Tempo: 4, Kraft: 5, Reichweite: 4, Ausdauer: 4 }, sk: 'shadowcut', light: { dmg: 6, range: 104, sound: 'slash' }, heavy: { dmg: 13, range: 116, sound: 'slash' },
+  special: { name: 'Schattenschnitt', desc: 'Teleport hinter den Gegner, roter Klingenhieb, nicht blockbar' } });
+
 const DUEL_LEVELS = {
   leicht: { label: 'Leicht', react: 0.6, aggro: 0.35, block: 0.15, dmg: 0.6, hp: 120, tips: true },
-  mittel: { label: 'Mittel', react: 0.32, aggro: 0.62, block: 0.4, dmg: 1.05, hp: 165 },
-  schwer: { label: 'Schwer', react: 0.16, aggro: 0.85, block: 0.6, dmg: 1.3, hp: 200, shadow: true },
+  // spam: nach so vielen Treffern in schneller Folge bricht Shadepi aus (Block → Teleport → Konter)
+  mittel: { label: 'Mittel', react: 0.32, aggro: 0.62, block: 0.4, dmg: 1.05, hp: 165, spam: 4 },
+  schwer: { label: 'Schwer', react: 0.16, aggro: 0.85, block: 0.6, dmg: 1.3, hp: 200, shadow: true, spam: 3, teleport: 3 },
 };
 
 const SH_TALK = {
@@ -89,6 +95,9 @@ const SH_TALK = {
   'punk-4': ['Eine Keule. Wie modern.', 'Groß, langsam, laut. Ich kenne den Typ.'],
   'shooter-violet': ['Eine Wache. Wen bewachst du? Dich jedenfalls nicht.', 'Gewehrkolben gegen Klinge. Mutig.'],
   'shooter-visor': ['Das Visier hilft dir nicht. Ich bin schneller als dein Zielrechner.', 'Ziel erfasst? Ziel verloren.'],
+  shadepi: ['Mein eigener Schatten. Endlich ein würdiger Gegner.', 'Du kämpfst mit meinen Techniken? Dann kenne ich jede davon.'],
+  breakout: ['Genug geklopft.', 'Das reicht.', 'Hinter dir.', 'Draufhauen ist keine Technik.', 'Zu vorhersehbar.', 'Du wiederholst dich.'],
+  blink: ['Hier drüben.', 'Zu langsam.', 'Schatten trifft man nicht.'],
   whiff: ['Du triffst die Luft. Sie hat Angst.', 'Das war ein Angriff? Ich dachte, du winkst.', 'Erst zielen, dann schlagen. In dieser Reihenfolge.', 'Die Fliege hinter mir lacht.'],
   hitYou: ['Zu langsam.', 'Deckung, Bruder.', 'Das war die Lektion von gestern.', 'Schläfst du?', 'Für dich. Gern geschehen.'],
   hitYouHard: ['Spür den Boden. Er ist dein Lehrer.', 'Steh auf. Wir sind nicht fertig.', 'Das tat dir mehr weh als mir.'],
@@ -163,7 +172,7 @@ class Brother extends Entity {
     if (this.blockT > 0) return AP.block;
     if (!this.ground) return AP.jump;
     if (this.landT > 0) return AP.land;
-    if (Math.abs(this.vx) > 20) return AP_WALK[Math.floor(this.animT * 9) % 4];
+    if (Math.abs(this.vx) > 20) return arcadeStep(this);
     return Math.floor(this.animT * 2.5) % 2 ? AP.breath : AP.ready;
   }
 
@@ -176,7 +185,8 @@ class Brother extends Entity {
     const o = { flash: this.flash > 0 ? 0.8 : 0 };
     if (this.dashT > 0) { o.tint = this.def.color; o.tintAmt = 0.25; }
     if (this.def.arcade) {
-      drawArcade(ctx, this.who, this.arcadeFrame(), x, y, S, { ...o, flip: f < 0 });
+      const fr = this.arcadeFrame();
+      drawArcade(ctx, this.who, fr, x, y, S, { ...o, flip: f < 0, bob: fr === AP.walkA || fr === AP.walkB ? arcadeBob(this, this.u) : 0 });
       if (this.blockT > 0) this.drawGuard(ctx);
       return;
     }
@@ -212,6 +222,7 @@ class Duel {
     this.combo = 0; this.comboT = 0; this.whiffs = 0; this.jumps = []; this.dashes = []; this.idleT = 0;
     this.talkCd = 0; this.lastLine = ''; this.paused = false; this.over = false;
     this.ai = { cd: 1.2, intent: null };
+    this.spam = { n: 0, t: -9 };
     this.onKey = (e) => this.key(e);
     this.onBlur = () => { this.keys = {}; this.mouseBtn = {}; if (this.phase === 'fight' && !this.paused) this.ui.togglePause(true); };
     window.addEventListener('keydown', this.onKey);
@@ -250,6 +261,9 @@ class Duel {
     if (this.dragon) this.dragonReset();
     this.player = new Brother(W, this.who, T.W * 0.3, T.floorY);
     this.player.land(T.surfaces[0], 0);
+    // Spielt man Shadepi, kämpft man gegen seinen Schatten
+    sh.shadowClone = this.who === 'shadepi';
+    this.player.stamina = 100;
     this.round = 0; this.wins = { you: 0, me: 0 }; this.matchOver = false;
     this.stats = { hits: 0, taken: 0, parries: 0, maxCombo: 0, dmg: 0, specials: 0 };
     this.combo = 0; this.lowMeSaid = this.lowYouSaid = false;
@@ -262,7 +276,8 @@ class Duel {
     const W = this.world, T = W.terrain, sh = this.sh, p = this.player, u = this.u;
     this.round++;
     if (this.dragon) this.L = dragonLevel(this.level, Math.min(5, this.round));
-    p.hp = p.maxHp; p.fpose = null; p.ko = false; p.koT = 0; p.move = null; p.hurtT = 0; p.blockT = 0; p.state = 'idle'; p.energy = Math.min(p.energy, 50);
+    p.hp = this.dragon && this.round > 1 ? Math.min(p.maxHp, Math.max(p.hp, 1) + p.maxHp * this.dragonHeal()) : p.maxHp; p.fpose = null;
+    p.stamina = 100; this.spam = { n: 0, t: -9 }; sh.alpha = 1; p.ko = false; p.koT = 0; p.move = null; p.hurtT = 0; p.blockT = 0; p.state = 'idle'; p.energy = Math.min(p.energy, 50);
     p.x = clamp(T.W * 0.5 - 220 * u, 60, T.W - 60); p.y = T.floorY; p.land(T.surfaces[0], 0); p.vx = 0; p.facing = 1;
     sh.maxHp = this.L.hp; sh.hp = sh.maxHp; sh.ko = false; sh.forcePose = null; sh.hurtT = 0;
     sh.x = clamp(T.W * 0.5 + 220 * u, 60, T.W - 60); sh.y = T.floorY; sh.land(T.surfaces[0], 0); sh.walkVx = 0; sh.facing = -1; sh.faceCam = false;
@@ -308,6 +323,9 @@ class Duel {
       rec.dragonRuns = (rec.dragonRuns || 0) + 1;
       rec.dragonBest = Math.max(rec.dragonBest || 0, reached);
       if (won) rec.dragonKing = (rec.dragonKing || 0) + 1;
+      this.justUnlocked = false;
+      if (won && this.level === 'schwer') { this.justUnlocked = !rec.shadepiUnlocked; rec.shadepiUnlocked = true; }
+      if (won && this.dragon.trueKing) rec.trueKing = (rec.trueKing || 0) + 1;
     }
     if (W.api) W.api.set('dojo', rec); else W.settings.dojo = rec;
     Sound.setMusic(null);
@@ -323,6 +341,7 @@ class Duel {
     this.dragon = null;
     this.player = null; this.projectiles = [];
     const sh = this.sh;
+    sh.shadowClone = false; sh.alpha = 1;
     if (sh.taskName === 'duel') sh.cancelTask();
     sh.ko = false; sh.hp = sh.def.hp; sh.maxHp = sh.def.hp; sh.forcePose = null;
     if (this.ra && this.ra.taskName === 'watch') this.ra.cancelTask();
@@ -337,6 +356,7 @@ class Duel {
   backToSelect() {
     if (this.dragon) this.dragonReset();
     this.dragon = null;
+    this.sh.shadowClone = false; this.sh.alpha = 1;
     this.player = null; this.projectiles = []; this.phase = 'select'; this.paused = false;
     const sh = this.sh;
     sh.ko = false; sh.hp = sh.maxHp = sh.def.hp; sh.forcePose = null; sh.hurtT = 0;
@@ -466,6 +486,13 @@ class Duel {
     if (this.buffer && now - this.buffer.t > 0.3) this.buffer = null;
     if (!p.canAct()) { if (!p.move) p.walkVx = 0; return; }
     if (this.buffer) { inp = { ...inp, [this.buffer.k]: true }; this.buffer = null; }
+    if (this.L.stamina) {
+      const cost = inp.dash ? 26 : inp.heavy ? 24 : inp.light ? 14 : 0;
+      if (cost) {
+        if (p.stamina < cost) { inp = { ...inp, dash: false, heavy: false, light: false }; if (!this.tiredT || this.world.time > this.tiredT) { this.tiredT = this.world.time + 0.7; this.world.fx.label(p.x, p.y - 150 * u, 'ERSCHÖPFT', '#8fd16a', 13, 0.6); Sound.play('calib_error', 0.25, 1.4); } }
+        else { p.stamina -= cost; p.stamT = 0.6; }
+      }
+    }
     const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
     p.walkVx = dir * d.speed * u;
     if (p.ground) p.vx = p.walkVx; else p.vx += (dir * d.speed * u - p.vx) * Math.min(1, dt * 6);
@@ -498,7 +525,7 @@ class Duel {
     W.cinema.card(p.def.special.name.toUpperCase(), p.def.title.toUpperCase(), p.def.color, 1.4, { always: true, small: true, y: W.terrain.H * 0.22 });
     Sound.play('legacy_aura', 0.5, 1.2);
     p.move = { kind: 'special', t: 0, frame: 1, hitSet: new Set(), hits: 0, shots: 0, phase: 0 };
-    if (p.who === 'ly') {
+    if (p.who === 'ly' || p.def.sk === 'shadowcut') {
       // Weißer Schatten: hinter Shadepi auftauchen
       const sh = this.sh;
       W.fx.smokePuff(p.x, p.y - 40 * u, 0.6 * u, 0.8);
@@ -531,6 +558,14 @@ class Duel {
         W.cinema.shake(3, 0.12);
       }
       if (m.t > 0.6) end();
+    } else if (sk === 'shadowcut') {
+      m.frame = m.t < 0.12 ? 1 : 2;
+      if (m.t > 0.12 && !m.hitSet.has(1)) {
+        m.hitSet.add(1); Sound.play('slash', 0.9, 0.8);
+        W.fx.slash(p.x + p.facing * 30 * u, p.y - 52 * u, p.facing, COLORS.red, 1.7 * u, { w: 10 });
+        if (Math.abs(sh.x - p.x) < 125 * u && Math.abs(sh.y - p.y) < 80 * u) this.hitShadepi(p, 14, { knock: 400, up: 240, special: true, unblockable: true });
+      }
+      if (m.t > 0.55) end();
     } else if (sk === 'salvo') {
       m.frame = 2;
       const n = Math.floor((m.t - 0.15) / 0.12);
@@ -567,6 +602,7 @@ class Duel {
     const W = this.world, u = this.u, sh = this.sh;
     p.tickTimers(dt);
     p.animT += dt; p.landT -= dt;
+    if (p.stamT > 0) p.stamT -= dt; else p.stamina = Math.min(100, (p.stamina ?? 100) + dt * (p.blockT > 0 ? 18 : 40));
     if (p.hurtT > 0) p.hurtT -= dt;
     if (p.dashT > 0) {
       p.dashT -= dt; p.walkVx = p.vx * 0.9;
@@ -665,6 +701,19 @@ class Duel {
     const W = this.world, sh = this.sh, u = this.u;
     if (sh.ko || this.phase !== 'fight') return;
     const dir = sign(sh.x - p.x) || 1;
+    // Während Ausbruch und Teleport ist er nicht zu treffen
+    const am = this.ai.move;
+    if (am && (am.kind === 'breakout' || (am.kind === 'blink' && am.t < 0.16))) {
+      if (am.kind === 'breakout' && !o.bullet) { W.fx.sparks(sh.x + sh.facing * 20 * u, sh.y - 55 * u, COLORS.redHot, 8, 300); Sound.play('hit', 0.4, 1.7); }
+      return;
+    }
+    // Ab Mittel lässt er sich nicht wehrlos prügeln: zu viele Treffer am Stück → Ausbruch
+    if (this.L.spam && !o.special) {
+      const now = W.time;
+      this.spam.n = now - this.spam.t < 0.95 ? this.spam.n + (o.bullet ? 0.25 : 1) : (o.bullet ? 0.25 : 1);
+      this.spam.t = now;
+      if (this.spam.n >= this.L.spam) { this.spam.n = 0; this.breakout(p); return; }
+    }
     // Shadepi pariert
     if (this.ai.blocking && !o.unblockable && sign(p.x - sh.x) === sh.facing) {
       W.fx.sparks(sh.x + sh.facing * 20 * u, sh.y - 55 * u, COLORS.redHot, 12, 320); W.fx.label(sh.x, sh.y - 110 * u, 'PARIERT', COLORS.red, 15, 0.8);
@@ -702,6 +751,37 @@ class Duel {
     if (sh.hp <= sh.maxHp * 0.3 && !this.lowMeSaid) { this.lowMeSaid = true; this.say(pick(SH_TALK.lowMe), true); }
     this.checkKo();
   }
+  // Kurzer Block, Spieler zurückstoßen, Teleport hinter ihn, Konter
+  breakout(p) {
+    const W = this.world, sh = this.sh, u = this.u;
+    const dir = sign(p.x - sh.x) || 1;
+    this.ai.stun = 0; this.ai.blocking = false; sh.hurtT = 0; sh.vx = 0; sh.forcePose = null;
+    W.fx.sparks(sh.x + sh.facing * 20 * u, sh.y - 55 * u, COLORS.redHot, 18, 420);
+    W.fx.ring(sh.x, sh.y - 50 * u, COLORS.red, 90 * u, 0.3, 3);
+    W.fx.label(sh.x, sh.y - 115 * u, 'DURCHBRUCH', COLORS.red, 16, 0.8);
+    Sound.play('calib_lock', 0.6, 0.8); Sound.play('hit', 0.6, 1.5); W.cinema.stop(0.08); W.cinema.shake(4, 0.15);
+    p.vx = dir * 260 * u; p.walkVx = 0; p.move = null; p.hurtT = Math.max(p.hurtT, 0.22);
+    this.combo = 0;
+    this.aiStart('breakout');
+    this.say(pick(SH_TALK.breakout), true);
+  }
+
+  // Verschwinden und an anderer Stelle auftauchen (Rauch, Nachbild)
+  teleport(x) {
+    const W = this.world, sh = this.sh, u = this.u, T = W.terrain;
+    const from = { x: sh.x, y: sh.y, f: sh.facing };
+    W.fx.smokePuff(sh.x, sh.y - 30 * u, 0.6 * u, 0.9);
+    W.fx.afterimage((ctx, col) => sh.drawBody(ctx, from.x, from.y, { tint: col, tintAmt: 0.85, alpha: 0.6, facing: from.f }), 0.35, '#3a0008');
+    sh.x = clamp(x, T.floorX1 + 30 * u, T.floorX2 - 30 * u);
+    sh.facing = sign(this.player.x - sh.x) || 1;
+    W.fx.smokePuff(sh.x, sh.y - 30 * u, 0.6 * u, 0.9);
+    W.fx.streak(from.x, from.y - 50 * u, sh.x, sh.y - 50 * u, COLORS.red, 0.18, 4 * u);
+    Sound.play('slash', 0.45, 0.55);
+  }
+
+  // Ab Runde 3 auf Schwer teleportiert er sich zusätzlich
+  get teleports() { return !!this.L.teleport && this.round >= this.L.teleport; }
+
   checkKo() {
     const sh = this.sh;
     if (this.dragon && this.dragonCheck()) return;
@@ -714,7 +794,7 @@ class Duel {
     const dir = sign(p.x - (o.fromX ?? sh.x)) || 1;
     dmg = Math.round(dmg * this.L.dmg * (p.def.armor && !o.heavy ? p.def.armor + 0.4 : 1));
     if (p.blockT > 0 && sign((o.fromX ?? sh.x) - p.x) === p.facing && !o.unblockable) {
-      if (p.blockT < 0.18) {
+      if (p.blockT < (this.L.parry || 0.18)) {
         // Perfekte Parade
         this.stats.parries++;
         W.fx.sparks(p.x + p.facing * 22 * u, p.y - 55 * u, COLORS.cyanHot, 18, 420);
@@ -727,6 +807,15 @@ class Duel {
       }
       const chip = Math.max(1, Math.round(dmg * 0.15));
       p.hp -= chip; p.vx = dir * 220 * u;
+      if (this.L.stamina) {
+        p.stamina = (p.stamina ?? 100) - (o.heavy ? 30 : 16); p.stamT = 0.6;
+        if (p.stamina <= 0) {
+          // Deckung gebrochen
+          p.stamina = 0; p.blockT = 0; p.hurtT = 0.85; p.move = null;
+          W.fx.label(p.x, p.y - 140 * u, 'DECKUNG GEBROCHEN', COLORS.warn, 15, 0.9); Sound.play('drive_knock', 0.6, 0.7); W.cinema.shake(4, 0.2);
+          return 'break';
+        }
+      }
       W.fx.sparks(p.x + p.facing * 22 * u, p.y - 55 * u, COLORS.cyan, 8, 260);
       Sound.play('hit', 0.5, 1.6);
       p.energy = Math.min(100, p.energy + 6);
@@ -771,11 +860,14 @@ class Duel {
     // auf Angriffe reagieren: blocken
     if (p.move && p.move.kind !== 'special' && ad < 150 * u && !ai.reacted) {
       ai.reacted = true;
+      if (this.teleports && chance(0.55)) { this.aiStart('blink', { strike: true }); return; }
       if (chance(L.block)) { this.aiStart('block', { dur: 0.5 }); return; }
     }
     if (!p.move) ai.reacted = false;
+    // Auf Schwer ab Runde 3: Spieler greift in Reichweite an → oft sofort hinter ihn
+    if (this.teleports && p.move && p.move.t < 0.05 && ad < 130 * u && chance(0.35)) { this.aiStart('blink', { strike: true }); return; }
     // Kugeln abwehren
-    if (this.projectiles.some((b) => b.from === 'you' && Math.abs(b.x - sh.x) < 160 * u && sign(b.vx) === -sh.facing) && chance(L.block * 0.6 * dt * 30)) { this.aiStart('deflect', { dur: 0.45 }); return; }
+    if (this.projectiles.some((b) => b.from === 'you' && Math.abs(b.x - sh.x) < 160 * u && sign(b.vx) === -sh.facing) && chance(L.block * 0.6 * dt * 30)) { this.aiStart(this.teleports && chance(0.5) ? 'blink' : 'deflect', { dur: 0.45, strike: true }); return; }
     // Tipps im leichten Modus
     if (L.tips && chance(dt * 0.04)) { this.say(pick(this.padConnected ? SH_TALK.tipsPad : SH_TALK.tips)); ai.cd = Math.max(ai.cd, 1.2); }
     if (ai.cd > 0) {
@@ -789,20 +881,32 @@ class Duel {
     ai.cd = rnd(0.35, 1.1) * (1.6 - L.aggro) + L.react * 0.6;
     if (this.dragon && this.dragonPick(ad, dx)) return;
     if (!p.ground && p.y < sh.y - 60 * u && ad < 260 * u && chance(0.6)) { this.aiStart('jumpslash'); return; }
+    if (this.teleports && ad > 240 * u && chance(0.55)) { this.aiStart('blink', { strike: chance(0.6), front: true }); return; }
+    if (this.teleports && chance(0.12)) { this.aiStart('blink', { strike: true }); return; }
     if (ad > 320 * u) { this.aiStart(chance(0.5) ? 'shuriken' : 'approach'); return; }
     if (L.shadow && chance(0.12)) { this.aiStart('shadow'); return; }
-    if (ad < 95 * u) { this.aiStart(weighted([['combo', 4], ['kick', 2], ['charge', 1.2 * L.aggro], ['block', 1]])); return; }
+    if (ad < 95 * u) { this.aiStart(weighted([['combo', 4], ['kick', 2], ['charge', 1.2 * L.aggro], ['block', 1], ['blink', this.teleports ? 2.5 : 0]]), { strike: chance(0.7) }); return; }
     this.aiStart(weighted([['approach', 3], ['charge', 1], ['shuriken', 1], ['jumpslash', 0.6]]));
   }
 
   aiStart(kind, o = {}) {
     // Ab der roten Aura fliegen Ki-Kugeln statt Shuriken
     if (kind === 'shuriken' && this.dragon && this.dragon.stage >= 4) { kind = 'kiball'; o = { n: this.dragon.stage === 5 ? 3 : 2, ...o }; }
+    if (this.L.feint && ['combo', 'kick', 'charge'].includes(kind) && chance(0.4)) o = { hold: rnd(0.18, 0.5), ...o };
     this.ai.move = { kind, t: 0, step: 0, ...o };
   }
 
   runAiMove(dt) {
     const W = this.world, sh = this.sh, p = this.player, u = this.u, ai = this.ai, m = ai.move, L = this.L;
+    // Verzögerter Angriff: Ausholen halten, damit man nicht stur auf den Takt parieren kann
+    if (m.hold > 0) {
+      if (!m.glint) { m.glint = true; W.fx.add({ type: 'ring', x: sh.x + sh.facing * 26 * u, y: sh.y - 62 * u, life: 0.25, r0: 2, r1: 22 * u, color: '#ffffff', w: 2 }); Sound.play('calib_tick', 0.35, 0.6); }
+      m.hold -= dt; sh.walkVx = 0; sh.facing = sign(p.x - sh.x) || sh.facing;
+      if (m.kind === 'kick') { sh.forcePose = 'pose'; sh.poseRow = 1; sh.akind = 'kick'; }
+      else if (m.kind === 'charge') { sh.forcePose = 'pose'; sh.poseRow = 0; sh.akind = 'special'; }
+      else { sh.forcePose = 'attack'; sh.attackDur = 0.36; sh.animT = 0.02; }
+      return;
+    }
     m.t += dt;
     const done = () => { ai.move = null; sh.forcePose = null; sh.walkVx = 0; ai.blocking = false; sh.akind = null; };
     const dx = p.x - sh.x;
@@ -886,6 +990,43 @@ class Duel {
         } else if (m.t > 0.2) done();
         if (m.t > 2) done();
         break;
+      case 'breakout': {
+        sh.walkVx = 0;
+        if (m.t < 0.26) { ai.blocking = true; sh.facing = sign(dx) || sh.facing; if (sh.arcadeOn) sh.forcePose = 'block'; else { sh.forcePose = 'pose'; sh.poseRow = 0; } break; }
+        ai.blocking = false;
+        if (m.step === 0) { m.step = 1; this.teleport(p.x - (p.facing || 1) * 72 * u); }
+        sh.forcePose = 'attack'; sh.attackDur = 0.4; sh.akind = null; sh.animT = Math.min(0.39, m.t - 0.26);
+        if (!m.hit && m.t > 0.42) {
+          m.hit = true; Sound.play('slash', 0.9, 0.95);
+          W.fx.slash(sh.x + sh.facing * 26 * u, sh.y - 52 * u, sh.facing, COLORS.red, 1.4 * u, { w: 9 });
+          if (this.dragon) this.dragonStrike(sh.x + sh.facing * 64 * u, sh.y - 52 * u);
+          if (this.inReach(95)) this.hitPlayer(9, { knock: 420, up: 220, heavy: true });
+        }
+        if (m.t > 0.75) { done(); ai.cd = L.react * 0.8 + 0.25; }
+        break;
+      }
+      case 'blink': {
+        sh.walkVx = 0;
+        if (m.step === 0) {
+          m.step = 1;
+          const T = W.terrain;
+          // hinter den Spieler, vor ihn oder auf Abstand
+          const tx = m.front ? p.x + (sign(sh.x - p.x) || 1) * 80 * u : m.strike ? p.x + (p.facing > 0 ? -1 : 1) * 72 * u : clamp(p.x + (chance(0.5) ? -1 : 1) * rnd(200, 300) * u, T.floorX1 + 60, T.floorX2 - 60);
+          this.teleport(tx);
+          if (chance(0.25)) this.say(pick(SH_TALK.blink));
+        }
+        sh.alpha = Math.min(1, 0.3 + m.t * 6);
+        if (!m.strike) { sh.forcePose = 'crouch'; if (m.t > 0.3) { done(); sh.alpha = 1; ai.cd = Math.min(ai.cd, 0.25); } break; }
+        sh.forcePose = 'attack'; sh.attackDur = 0.4; sh.animT = Math.min(0.39, m.t);
+        if (!m.hit && m.t > 0.17) {
+          m.hit = true; Sound.play('slash', 0.8, 1.15);
+          W.fx.slash(sh.x + sh.facing * 24 * u, sh.y - 52 * u, sh.facing, COLORS.red, 1.2 * u);
+          if (this.dragon) this.dragonStrike(sh.x + sh.facing * 64 * u, sh.y - 52 * u);
+          if (this.inReach(88)) this.hitPlayer(8, { knock: 300 });
+        }
+        if (m.t > 0.5) { done(); sh.alpha = 1; }
+        break;
+      }
       case 'shadow':
         sh.akind = 'special';
         if (m.step === 0) {
@@ -1042,11 +1183,18 @@ class Duel {
     ctx.font = '8px Silkscreen, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillStyle = p.energy >= 100 ? COLORS.cyan : COLORS.muted;
     ctx.fillText(p.energy >= 100 ? `${d.special.name.toUpperCase()} BEREIT · ${this.padConnected ? 'LB' : 'E'}` : 'ENERGIE', 24 + ew + 14, ey + 3);
+    if (this.L.stamina) {
+      const sy = ey + 12, st = clamp((p.stamina ?? 100) / 100, 0, 1);
+      ctx.fillStyle = 'rgba(7,10,18,0.88)'; ctx.fillRect(18, sy - 4, ew + 12, 13);
+      ctx.fillStyle = '#122014'; ctx.fillRect(24, sy, ew, 5);
+      ctx.fillStyle = st < 0.25 ? COLORS.warn : '#8fd16a'; ctx.fillRect(24, sy, ew * st, 5);
+      ctx.fillStyle = st < 0.25 ? COLORS.warn : COLORS.muted; ctx.fillText('AUSDAUER', 24 + ew + 14, sy + 3);
+    }
     if (D) {
       const st = DRAGON_STAGES[Math.max(1, D.stage)];
       const col = D.aura === 'white' ? (Math.sin(W.time * 10) > 0 ? '#ffffff' : '#ffd6dc') : D.aura === 'red' ? '#ff2a3a' : COLORS.red;
-      bar(T.W - 24 - bw, top + 22, bw, sh.hp / sh.maxHp, col, true, D.stage >= 5 ? 'SHADEPI · DRACHE' : 'SHADEPI', `${st.title} · ${this.L.label.toUpperCase()}`, -1);
-    } else bar(T.W - 24 - bw, top + 22, bw, sh.hp / sh.maxHp, COLORS.red, true, 'SHADEPI', `TRAINING · ${this.L.label.toUpperCase()}`, this.wins.me);
+      bar(T.W - 24 - bw, top + 22, bw, sh.hp / sh.maxHp, col, true, (sh.shadowClone ? 'SCHATTEN-SHADEPI' : 'SHADEPI') + (D.stage >= 5 ? ' · DRACHE' : ''), `${st.title} · ${this.L.label.toUpperCase()}`, -1);
+    } else bar(T.W - 24 - bw, top + 22, bw, sh.hp / sh.maxHp, COLORS.red, true, sh.shadowClone ? 'SCHATTEN-SHADEPI' : 'SHADEPI', `TRAINING · ${this.L.label.toUpperCase()}`, this.wins.me);
     // Zeit
     ctx.textAlign = 'center'; ctx.font = '34px ShadepiPixel, monospace'; ctx.fillStyle = this.timer < 10 ? COLORS.warn : '#fff';
     ctx.fillText(isFinite(this.timer) ? String(Math.max(0, Math.ceil(this.timer))) : '∞', T.W / 2, top + 22);
@@ -1070,7 +1218,7 @@ class Duel {
 
 // ---------------------------------------------------------------- Dojo-Oberfläche
 // Auswahl der Ordensbrüder, Pause, Ergebnis. Bedienbar mit Maus, Tastatur und Controller.
-const DOJO_ORDER = ['oni', 'robot', 'ly', 'heavy', 'raven', 'kenzo', 'jackal', 'punk-1', 'punk-2', 'punk-3', 'punk-4', 'shooter-violet', 'shooter-visor']
+const DOJO_ORDER = ['oni', 'robot', 'ly', 'heavy', 'raven', 'kenzo', 'jackal', 'punk-1', 'punk-2', 'punk-3', 'punk-4', 'shooter-violet', 'shooter-visor', 'shadepi']
   .filter((id) => !BROTHERS[id].arcade || hasArcade(id));
 const DOJO_COLS = 7;
 const DOJO_LEVELS = ['leicht', 'mittel', 'schwer'];
@@ -1088,6 +1236,7 @@ class Dojo {
   }
 
   get active() { return !!this.duel; }
+  isLocked(id) { return !!(BROTHERS[id] && BROTHERS[id].unlock) && !(this.world.settings.dojo || {}).shadepiUnlocked; }
 
   open() {
     const W = this.world;
@@ -1169,11 +1318,11 @@ class Dojo {
   showSelect() {
     const W = this.world, rec = W.settings.dojo || {};
     const tiles = DOJO_ORDER.map((id, i) => {
-      const d = BROTHERS[id];
-      return `<button class="bro" data-bro="${i}" style="--c:${d.color}" title="${d.title}">
+      const d = BROTHERS[id], locked = this.isLocked(id);
+      return `<button class="bro${locked ? ' locked' : ''}${d.group === 'secret' ? ' secret' : ''}" data-bro="${i}" style="--c:${d.color}" title="${locked ? 'Gesperrt' : d.title}">
         <canvas width="84" height="96" data-por="${id}"></canvas>
-        <div class="nm">${d.name}</div>
-        <div class="tag">${d.group === 'neon' ? 'NEON KOMBAT' : 'ORDEN'}</div>
+        <div class="nm">${locked ? '???' : d.name}</div>
+        <div class="tag">${locked ? 'GESPERRT' : d.group === 'secret' ? 'FREIGESCHALTET' : d.group === 'neon' ? 'NEON KOMBAT' : 'ORDEN'}</div>
         ${rec[id] ? `<div class="won">${rec[id]}</div>` : ''}
       </button>`;
     }).join('');
@@ -1247,7 +1396,18 @@ class Dojo {
     const id = DOJO_ORDER[this.sel], d = BROTHERS[id], rec = this.world.settings.dojo || {};
     const det = this.panel.querySelector('.dj-detail');
     det.style.setProperty('--c', d.color);
-    det.querySelector('.grp').textContent = d.group === 'neon' ? 'NEON KOMBAT' : 'ORDENSBRUDER';
+    det.classList.toggle('locked', this.isLocked(id));
+    if (this.isLocked(id)) {
+      det.querySelector('.grp').textContent = 'GESPERRT';
+      det.querySelector('.nm').textContent = '???';
+      det.querySelector('.wp').textContent = 'EIN UNBEKANNTER KRIEGER';
+      det.querySelector('.stats').innerHTML = '';
+      det.querySelector('.sp').innerHTML = '<em>FREISCHALTEN</em> Besiege THE REAL DRAGON auf Schwer.<small>Nur wer den Drachen bezwingt, darf ihn führen.</small>';
+      det.querySelector('.won2').textContent = '';
+      this.previewT = 0;
+      return;
+    }
+    det.querySelector('.grp').textContent = d.group === 'secret' ? 'FREIGESCHALTET · GEGEN SEINEN SCHATTEN' : d.group === 'neon' ? 'NEON KOMBAT' : 'ORDENSBRUDER';
     det.querySelector('.nm').textContent = d.title;
     det.querySelector('.wp').textContent = d.weapon.toUpperCase();
     det.querySelector('.stats').innerHTML = Object.entries(d.stats).map(([k, v]) => `<div class="st"><span>${k}</span><i>${'<b></b>'.repeat(v)}${'<b class="off"></b>'.repeat(5 - v)}</i></div>`).join('')
@@ -1277,7 +1437,8 @@ class Dojo {
       const fr = seq[Math.floor(t * 4.5) % seq.length];
       const A = MANIFEST.arcade, f = A.fighters[id].frames[0];
       const S = (Math.min(205, 190 * (f.r[3] / 141)) / f.r[3]) * A.keep / A.unit; // Größenunterschiede (Jackal) bleiben sichtbar
-      drawArcade(ctx, id, fr, 100, 236, S);
+      if (this.isLocked(id)) drawArcade(ctx, id, Math.floor(t * 2.5) % 2 ? AP.breath : AP.ready, 100, 236, S, { tint: '#05070c', tintAmt: 1 });
+      else drawArcade(ctx, id, fr, 100, 236, S);
     } else {
       const seq = [['idle', 2], ['idle', 2], ['combat', 0], ['combat', 1], ['combat', 2], ['combat', 3], ['combat', 0], ['idle', 0], ['idle', 2]];
       const [st, i] = seq[Math.floor(t * 3.5) % seq.length];
@@ -1301,12 +1462,18 @@ class Dojo {
     const sc = Math.min((H - 8) / r[3], (W - 6) / r[2]);
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(W / 2, H - 5, W * 0.26, 4, 0, 0, 7); ctx.fill();
     const cx = W / 2 + (a[0] - r[2] / 2) * sc * 0.5;
-    drawRegion(ctx, img, r[0], r[1], r[2], r[3], a[0], a[1], cx, H - 5 + (a[1] - r[3]) * sc, sc);
+    drawRegion(ctx, img, r[0], r[1], r[2], r[3], a[0], a[1], cx, H - 5 + (a[1] - r[3]) * sc, sc, this.isLocked(who) ? { tint: '#05070c', tintAmt: 1 } : {});
   }
 
   start() {
     const who = DOJO_ORDER[this.sel], level = DOJO_LEVELS[this.lvl];
     const W = this.world;
+    if (this.isLocked(who)) {
+      const sh = W.hero('shadepi');
+      if (sh) sh.talk(pick(['Mich willst du führen? Erst den Drachen besiegen. Auf Schwer.', 'Diesen Krieger musst du dir verdienen.']), true);
+      Sound.play('calib_error', 0.4, 1.1);
+      return;
+    }
     const rec = { ...(W.settings.dojo || {}), last: who, level, mode: this.mode };
     if (W.api) W.api.set('dojo', rec); else W.settings.dojo = rec;
     this.hide();
@@ -1381,12 +1548,12 @@ class Dojo {
   showDragonResult(won, st, rec) {
     const d = this.duel, D = d.dragon;
     const reached = D.fin ? 6 : D.stage;
-    const grade = won ? (st.taken < 120 ? 'S' : 'A') : reached >= 5 ? 'B' : reached >= 4 ? 'C' : 'D';
-    const verdict = won ? 'Du hast meinen Respekt, Dragonking.' : reached >= 6 ? 'So nah dran. Und doch: Bildschirm kaputt.'
+    const grade = won ? (D.trueKing || st.taken < 120 ? 'S' : 'A') : reached >= 5 ? 'B' : reached >= 4 ? 'C' : 'D';
+    const verdict = won ? (D.trueKing ? 'Der Drache hat einen neuen Meister.' : 'Du hast meinen Respekt, Dragonking.') : reached >= 6 ? 'So nah dran. Und doch: Bildschirm kaputt.'
       : reached >= 4 ? 'Du hast den Drachen geweckt. Das allein ist schon etwas.' : pick(DR_TALK.loseEarly);
     this.focus = 0;
     this.setView('result', `
-      <div class="dj-big ${won ? 'win dragonking' : 'lose'}">${won ? 'DRAGONKING' : 'GAME OVER'}</div>
+      <div class="dj-big ${won ? 'win dragonking' : 'lose'}">${won ? (D.trueKing ? 'WAHRER DRAGONKING' : 'DRAGONKING') : 'GAME OVER'}</div>
       <div class="dj-sub">THE REAL DRAGON · ${BROTHERS[d.who].title.toUpperCase()} · ${d.L.label.toUpperCase()} · ERREICHT: ${DRAGON_STAGE_NAMES[reached].toUpperCase()}</div>
       <div class="dj-stages">${DRAGON_STAGE_NAMES.slice(1).map((n, i) => `<span class="${i + 1 < reached || (won && i + 1 === reached) ? 'done' : i + 1 === reached ? 'cur' : ''}${i >= 3 ? ' s' + (i + 1) : ''}">${n.toUpperCase()}</span>`).join('')}</div>
       <div class="dj-res">
@@ -1398,6 +1565,7 @@ class Dojo {
         </div>
       </div>
       <div class="dj-quote"><span>SHADEPI:</span> „${verdict}“</div>
+      ${d.justUnlocked ? '<div class="dj-unlock">NEU FREIGESCHALTET: <b>SHADEPI</b> ALS KÄMPFER – IN DER AUSWAHL GANZ HINTEN</div>' : ''}
       <div class="dj-menu"><button class="act go" data-nav="again">${won ? 'NOCH EINMAL' : 'REVANCHE'}</button><button class="act" data-nav="select">KRIEGER WECHSELN</button><button class="act warn" data-nav="leave">BEENDEN</button></div>
       <div class="dj-sub small">DRAGONKING ×${rec.dragonKing || 0} · BESTE STUFE: ${DRAGON_STAGE_NAMES[rec.dragonBest || 1].toUpperCase()} · ${rec.dragonRuns || 0} VERSUCHE</div>`);
     this.wireNav();

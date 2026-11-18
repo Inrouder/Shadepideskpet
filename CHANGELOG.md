@@ -2,6 +2,16 @@
 
 Die neueste Version steht oben. Der Abschnitt einer Version wird beim Veröffentlichen automatisch als Release-Text übernommen und auf der Startseite des Repos angezeigt.
 
+## 1.9.0 · 19.11.2026 · Der Weg des Drachen
+
+- **The Real Dragon deutlich schwerer:** Auf **Mittel** hat Shadepi mehr Leben, trifft härter, reagiert schneller, feuert mehr Ki-Kugeln und die Drachenwelle öfter; im Finale musst du schneller hämmern.
+- **Schwer ist jetzt gnadenlos:** Ausdauerleiste (Angriffe und Ausweichen kosten Ausdauer, geblockte Treffer auch – leer heißt Deckung gebrochen), verzögerte Angriffe gegen stures Parieren, kleineres Paradefenster, nur halbe Heilung zwischen den Runden. Wer fällt, sieht **GEFALLEN**.
+- **Kein Wehrlos-Prügeln mehr (ab Mittel, auch im Training):** Wer Shadepi mit Angriffen eindeckt, löst einen **Durchbruch** aus – er blockt kurz, teleportiert sich hinter dich und kontert.
+- **Teleports auf Schwer ab Runde 3:** Shadepi weicht per Schattensprung aus, taucht hinter dir auf und überbrückt Abstand blitzschnell.
+- **Geheimes Finish:** Wer The Real Dragon auf Schwer besiegt, bekommt eine besondere Chance … Den Weg musst du selbst finden – oder auf Raven hören.
+- **Shadepi als Kämpfer freischaltbar:** Nach dem Sieg auf Schwer erscheint er in der Auswahl (Spezialtechnik **Schattenschnitt**) und kämpft gegen seinen eigenen Schatten.
+- **Neue Laufanimation:** Die Figuren humpeln nicht mehr. Schrittbilder werden am Körper ausgerichtet, der Schritt-Takt richtet sich nach dem Laufweg, dazu ein leichtes Wippen – im Dojo, bei Gegnern und bei Shadepi und Raven im Kampfstil.
+
 ## 1.8.0 · 18.11.2026 · The Real Dragon
 
 - **Neuer Dojo-Modus „The Real Dragon“:** Shadepi wird Runde für Runde stärker, eine verlorene Runde beendet den Versuch. Wählbar im Dojo unter Modus (M bzw. Controller Y), im Menü unter Szenen und im Tray.

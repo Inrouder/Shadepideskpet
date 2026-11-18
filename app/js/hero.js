@@ -1426,6 +1426,7 @@ class Hero extends Entity {
     const opts = { flash: this.flash > 0 ? 0.8 : 0, alpha: this.alpha * (this.ko ? 0.9 : 1) };
     if (this.ko) { opts.tint = '#05070c'; opts.tintAmt = 0.35; }
     else if (this.glow) { opts.tint = this.glow; opts.tintAmt = this.glowAmt || 0.2; }
+    else if (this.shadowClone) { opts.tint = '#22083e'; opts.tintAmt = 0.6; }
     this.drawBody(ctx, this.x, this.y, opts);
     if (this.dizzy > 0 && !this.dragged) this.drawStars(ctx);
   }
@@ -1442,8 +1443,7 @@ class Hero extends Entity {
     const t = this.animT;
     switch (pose) {
       case 'idle': return Math.floor(t * 2.5) % 2 ? AP.breath : AP.ready;
-      case 'walk': return AP_WALK[Math.floor(t * 8) % 4];
-      case 'run': return AP_WALK[Math.floor(t * 13) % 4];
+      case 'walk': case 'run': return arcadeStep(this);
       case 'attack': {
         const k = this.attackDur ? t / this.attackDur : 1;
         if (this.akind === 'kick') return k < 0.35 ? AP.kick0 : AP.kick1;
@@ -1480,6 +1480,7 @@ class Hero extends Entity {
         const ao = { ...opts, flip: f < 0 };
         if (pose === 'dragged') { ao.rot = this.swing; ao.pivotY = 78 * u; }
         if (pose === 'tumble') { ao.rot = this.spin; ao.pivotY = 45 * u; }
+        if ((pose === 'walk' || pose === 'run') && this.ground) ao.bob = arcadeBob(this, u);
         if (pose === 'ko' && this.world.duel) ao.tint = undefined;
         drawArcade(ctx, this.name, fr, x, y, S, ao);
         if (pose === 'cast' && this.name === 'raven') {

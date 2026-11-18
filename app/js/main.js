@@ -223,6 +223,7 @@ class DemoWindows {
     dojo.open();
     const who = params.get('duel');
     if (params.get('mode') === 'dragon') dojo.mode = 'dragon';
+    if (who === 'shadepi' || params.has('unlock')) world.settings.dojo = { ...(world.settings.dojo || {}), shadepiUnlocked: true }; // nur Vorschau/Tests
     if (who && BROTHERS[who]) {
       dojo.sel = DOJO_ORDER.indexOf(who); dojo.lvl = Math.max(0, DOJO_LEVELS.indexOf(params.get('level') || 'mittel')); dojo.start();
       if (params.get('stage') && dojo.duel.dragon) dojo.duel.dragonJump(+params.get('stage'));

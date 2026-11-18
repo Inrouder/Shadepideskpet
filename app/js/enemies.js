@@ -273,7 +273,7 @@ class StreetEnemy extends Enemy {
     if (this.dashT <= 0 || (this.ground && (this.x <= this.ground.x1 + 30 || this.x >= this.ground.x2 - 30))) { this.dashT = 0; this.walkVx = 0; this.hitSet = null; }
   }
   arcadeFrame() {
-    if (this.sparDone) return this.dyingT < 0.25 ? AP.hurt : this.dyingT < 1.3 ? AP.land : this.dyingT < 2.6 ? AP.victory : AP_WALK[Math.floor(this.animT * 8) % 4];
+    if (this.sparDone) return this.dyingT < 0.25 ? AP.hurt : this.dyingT < 1.3 ? AP.land : this.dyingT < 2.6 ? AP.victory : arcadeStep(this);
     if (this.dragged || (this.stun > 0.05 && !this.dead)) return AP.hurt;
     if (this.dead) return this.dyingT < 0.12 ? AP.hurt : AP.ko;
     if (this.blockT > 0) return AP.block;
@@ -290,7 +290,7 @@ class StreetEnemy extends Enemy {
     }
     if (!this.ground) return AP.jump;
     if (this.landT > 0) return AP.land;
-    if (Math.abs(this.vx) > 15) return AP_WALK[Math.floor(this.animT * (this.dashT > 0 ? 16 : 8)) % 4];
+    if (Math.abs(this.vx) > 15) return arcadeStep(this);
     return Math.floor(this.animT * 2.5) % 2 ? AP.breath : AP.ready;
   }
   draw(ctx) {
@@ -303,7 +303,9 @@ class StreetEnemy extends Enemy {
       else if (this.dead) o.alpha = this.dyingT < 0.5 ? 1 : Math.max(0, 1 - (this.dyingT - 0.5) / 0.6);
       o.flip = this.facing < 0;
       if (this.dragged) { o.rot = this.swing || 0; o.pivotY = 78 * this.u; }
-      drawArcade(ctx, this.sprite, this.arcadeFrame(), this.x, this.y, S, o);
+      const fr = this.arcadeFrame();
+      if ((fr === AP.walkA || fr === AP.walkB) && this.ground) o.bob = arcadeBob(this, this.u);
+      drawArcade(ctx, this.sprite, fr, this.x, this.y, S, o);
       this.drawHp(ctx);
       return;
     }

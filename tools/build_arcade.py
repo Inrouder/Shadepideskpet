@@ -68,11 +68,26 @@ def pack_arcade(src: Path) -> dict:
     sheets = [Image.new("RGBA", (W, heights[s])) for s in range(n)]
     for (fid, i, img, ax, ay), s, px, py in placed:
         sheets[s].alpha_composite(img, (px, py))
-        fighters[fid]["frames"][i] = {"s": s, "r": [px, py, img.width, img.height], "a": [round(ax, 1), round(ay, 1)]}
+        fighters[fid]["frames"][i] = {"s": s, "r": [px, py, img.width, img.height], "a": [round(ax, 1), round(ay, 1)], "t": torso_x(img, ax, ay)}
     (OUT / "arcade").mkdir(parents=True, exist_ok=True)
     for s, im in enumerate(sheets):
         im.save(OUT / "arcade" / f"fighters-{s}.png", optimize=True)
     return {"keep": KEEP, "unit": UNIT, "poses": atlas_info["poses"], "sheets": n, "fighters": fighters}
+
+
+def torso_x(img: Image.Image, ax: float, ay: float) -> float:
+    """Waagerechte Rumpfmitte relativ zum Anker (Mittel der deckenden Pixel zwischen 30 und 60 % der Körperhöhe).
+    Damit richtet die Laufanimation Schritt- und Standbilder am Körper statt am Fußanker aus."""
+    a = img.getchannel("A").load()
+    w, h = img.size
+    top = next((y for y in range(h) if any(a[x, y] > 128 for x in range(w))), 0)
+    body = max(1.0, ay - top)
+    sx = n = 0
+    for y in range(int(top + body * 0.3), int(top + body * 0.6)):
+        for x in range(w):
+            if a[x, y] > 128:
+                sx += x; n += 1
+    return round(sx / n - ax, 1) if n else 0.0
 
 
 def main(src: Path) -> None:

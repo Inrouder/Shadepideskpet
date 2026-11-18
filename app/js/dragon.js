@@ -14,12 +14,22 @@ const DRAGON_STAGES = [
 ];
 const DRAGON_STAGE_NAMES = ['', 'Runde 1', 'Runde 2', 'Runde 3', 'Rote Aura', 'Macht des Drachen', 'Finale'];
 
+// Schwierigkeit im Drachenmodus: Mittel ist schon schwer, Schwer ist gnadenlos (Ausdauer, verzögerte
+// Angriffe, kleines Paradefenster, kaum Heilung zwischen den Runden, Teleports ab Runde 3).
+const DRAGON_DIFF = {
+  leicht: { hp: 1, dmg: 1, react: 1, aggro: 0, block: 0, heal: 1, healBig: 1, press: 4, free: 0.13, shRate: 8, charge: 9.5, beamCd: [6, 9], kiN: 0 },
+  mittel: { hp: 1.15, dmg: 1.35, react: 0.75, aggro: 0.12, block: 0.12, heal: 1, healBig: 1, press: 2.4, free: 0.075, shRate: 13, charge: 8.5, beamCd: [4.5, 7], kiN: 1 },
+  schwer: { hp: 1.3, dmg: 1.6, react: 0.55, aggro: 0.18, block: 0.2, heal: 0.5, healBig: 0.6, press: 2.0, free: 0.06, shRate: 18, charge: 7, beamCd: [3.5, 5.5], kiN: 1,
+    stamina: true, parry: 0.12, feint: true, souls: true },
+};
+
 function dragonLevel(level, stage) {
-  const b = DUEL_LEVELS[level] || DUEL_LEVELS.mittel, s = DRAGON_STAGES[stage];
+  const b = DUEL_LEVELS[level] || DUEL_LEVELS.mittel, s = DRAGON_STAGES[stage], d = DRAGON_DIFF[level] || DRAGON_DIFF.mittel;
   return {
-    ...b, hp: Math.round(b.hp * s.hp), dmg: b.dmg * s.dmg, react: b.react * s.react,
-    aggro: Math.min(0.95, b.aggro + s.aggro), block: Math.min(0.8, b.block + s.block),
+    ...b, hp: Math.round(b.hp * s.hp * d.hp), dmg: b.dmg * s.dmg * d.dmg, react: b.react * s.react * d.react,
+    aggro: Math.min(0.97, b.aggro + s.aggro + d.aggro), block: Math.min(0.85, b.block + s.block + d.block),
     shadow: b.shadow || !!s.shadow, tips: b.tips && stage === 1,
+    stamina: !!d.stamina, parry: d.parry, feint: !!d.feint,
   };
 }
 
@@ -40,12 +50,18 @@ const DR_TALK = {
   lose: ["Hahaha… Das war's. Für alle.", 'Ups. Das Dojo braucht einen neuen Bildschirm.'],
   loseEarly: ['Der Drache schläft weiter. Komm wieder, wenn du stärker bist.', 'Nicht mal die rote Aura gesehen. Training!'],
 };
+DR_TALK.finishAsk = ['…Na los. Zeig mir den Weg des Drachen.', 'Beende es. Wenn du den Weg kennst.'];
+DR_TALK.finishTrue = ['Der Drache hat einen neuen Meister.', 'Ab jetzt kämpfe ich an deiner Seite. Wenn du willst.'];
+DR_TALK.finishLate = 'Zögern… Der Drache wartet nicht. Aber gewonnen hast du trotzdem. Respekt, Dragonking.';
 const DR_RAVEN = {
   red: ['Äh… Hutmann? Seit wann kannst du DAS?', 'Rot steht dir. Bedrohlich, aber gut.'],
   dragon: ['Ich hol schon mal den Feuerlöscher.', 'Mein Bildschirm! Der war geleast!'],
   win: ['DRAGONKING! Ich mach ein Banner!', 'Er liegt. Er liegt wirklich!'],
   lose: ['…Mein Desktop.', 'Ich ruf den Support.'],
+  hint: 'Psst! Runter, nach vorn, hoch – und dann Spezial!',
+  trueKing: ['…Hat er gerade meinen Desktop REPARIERT?', 'Ich hab Gänsehaut. Digitale, aber trotzdem.'],
 };
+
 
 // Augenposition je NEON-KOMBAT-Bild (Pixel im Blatt, relativ zum Fußpunkt, Blick nach rechts)
 const SH_EYES = { 0: [4.8, -119.2], 1: [3.8, -120.2], 2: [33.2, -116.6], 3: [42.6, -114], 4: [31, -92], 5: [2.2, -92.4], 6: [-43.6, -118.8], 7: [52.8, -12.2], 8: [1.2, -103.2], 9: [6.8, -102.4], 10: [5.2, -116.4], 11: [1.4, -114.2], 12: [8.6, -97.6], 13: [5.2, -83], 14: [0.6, -121.2], 15: [34.2, -69] };
@@ -57,6 +73,7 @@ function hexA(hex, a) {
 
 const AURA_PAL = {
   red: { glow: '#ff2030', layers: [[1.22, '#ff1a2e', 0.32], [1.0, '#ff4a3a', 0.4], [0.76, '#ffb09a', 0.42]], spark: ['#ff3150', '#ff8a6a', '#ffd0c0'] },
+  gold: { glow: '#ffd27a', layers: [[1.3, '#ffb43a', 0.24], [1.08, '#ffd27a', 0.36], [0.8, '#fff6d8', 0.48]], spark: ['#ffd27a', '#ffffff', '#ffb43a'] },
   white: { glow: '#ffffff', layers: [[1.34, '#ff3150', 0.2], [1.14, '#d8ecff', 0.34], [0.96, '#ffffff', 0.42], [0.74, '#ffffff', 0.5]], spark: ['#ffffff', '#d8ecff', '#ff8aa0'] },
 };
 
@@ -119,9 +136,9 @@ function drawKiBall(ctx, x, y, r, col, t, o = {}) {
 }
 
 // Kopf des Energiedrachen; Blick in Richtung dir, Mittelpunkt etwa an der Kieferwurzel
-function drawDragonHead(ctx, x, y, dir, s, t, a) {
+function drawDragonHead(ctx, x, y, dir, s, t, a, rot = 0, gold = false) {
   ctx.save();
-  ctx.translate(x, y); ctx.scale(dir * s, s);
+  ctx.translate(x, y); if (rot) ctx.rotate(rot); ctx.scale(dir * s, s);
   ctx.globalAlpha *= a;
   const jaw = 0.5 + 0.5 * Math.sin(t * 16);
   const shape = (pass) => {
@@ -140,12 +157,12 @@ function drawDragonHead(ctx, x, y, dir, s, t, a) {
     ctx.restore();
   };
   ctx.globalCompositeOperation = 'lighter';
-  ctx.shadowColor = '#ff3150'; ctx.shadowBlur = 30;
-  ctx.fillStyle = 'rgba(255,90,60,0.55)'; ctx.strokeStyle = 'rgba(255,200,120,0.9)'; ctx.lineWidth = 3;
+  ctx.shadowColor = gold ? '#ffb43a' : '#ff3150'; ctx.shadowBlur = 30;
+  ctx.fillStyle = gold ? 'rgba(255,190,80,0.55)' : 'rgba(255,90,60,0.55)'; ctx.strokeStyle = 'rgba(255,220,140,0.95)'; ctx.lineWidth = 3;
   shape(true);
   ctx.shadowBlur = 0;
   const g = ctx.createLinearGradient(0, -40, 0, 20);
-  g.addColorStop(0, '#fff6d8'); g.addColorStop(0.6, '#ffc060'); g.addColorStop(1, '#ff5040');
+  g.addColorStop(0, '#fff6d8'); g.addColorStop(0.6, '#ffc060'); g.addColorStop(1, gold ? '#ffb43a' : '#ff5040');
   ctx.fillStyle = g; ctx.globalAlpha *= 0.85;
   shape(false);
   ctx.globalAlpha /= 0.85;
@@ -160,6 +177,24 @@ function drawDragonHead(ctx, x, y, dir, s, t, a) {
   ctx.shadowBlur = 8; ctx.strokeStyle = 'rgba(255,230,180,0.9)'; ctx.lineWidth = 2;
   for (const k of [-1, 1]) { ctx.beginPath(); ctx.moveTo(70, -10 + k * 2); ctx.bezierCurveTo(50, 10 + k * 18 + Math.sin(t * 12) * 8, 10, 22 + k * 14, -40, 18 + k * 20 + Math.sin(t * 9 + k) * 10); ctx.stroke(); }
   ctx.restore();
+}
+
+// Goldener Drache des geheimen Finishs: windet sich um (cx, cy) und steigt dann auf
+function drawCoilDragon(ctx, cx, cy, t, u, k, rise) {
+  const L = 640 * u, seg = 9 * u, pts = [];
+  for (let s = 0; s <= L; s += seg) {
+    const a = t * 5.5 - s / (60 * u);
+    pts.push([cx + Math.cos(a) * 106 * u, cy + Math.sin(a) * 42 * u + (s / L - 0.5) * 80 * u - rise * (1 - s / L * 0.6), s]);
+  }
+  ctx.save(); ctx.globalAlpha *= k; ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  for (const [mul, col, al] of [[2.6, '#ffb43a', 0.16], [1.7, '#ffb43a', 0.4], [1.0, '#ffe08a', 0.8], [0.42, '#ffffff', 0.95]]) {
+    ctx.strokeStyle = hexA(col, al);
+    for (let i = 1; i < pts.length; i++) { ctx.lineWidth = lerp(34, 6, pts[i][2] / L) * u * mul; ctx.beginPath(); ctx.moveTo(pts[i - 1][0], pts[i - 1][1]); ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke(); }
+  }
+  ctx.restore();
+  const ang = Math.atan2(pts[0][1] - pts[1][1], pts[0][0] - pts[1][0]);
+  const left = Math.cos(ang) < 0;
+  drawDragonHead(ctx, pts[0][0], pts[0][1], left ? -1 : 1, 1.35 * u, t, k, left ? ang - Math.PI : ang, true);
 }
 
 // ---------------------------------------------------------------- Risse im Desktop
@@ -378,7 +413,8 @@ Object.assign(Duel.prototype, {
       this.matchOver = true;
       if (st >= 4) { this.destroyScreen(p.x, p.y - 50 * u); return; }
       this.phase = 'roundEnd'; this.phaseT = 0;
-      W.cinema.card(reason === 'time' ? 'ZEIT!' : 'K.O.', 'DER DRACHE SCHLÄFT WEITER', COLORS.red, 2.2, { always: true });
+      if (this.dragonDiff().souls && reason !== 'time') { W.cinema.card('GEFALLEN', 'DER DRACHE SCHLÄFT WEITER', '#b0122a', 3, { always: true }); W.cinema.flash('#000000', 0.5); Sound.play('calib_error', 0.6, 0.5); }
+      else W.cinema.card(reason === 'time' ? 'ZEIT!' : 'K.O.', 'DER DRACHE SCHLÄFT WEITER', COLORS.red, 2.2, { always: true });
       setTimeout(() => this.say(pick(DR_TALK.loseEarly), true), 900);
       setTimeout(() => { if (this.phase === 'roundEnd' && !this.sh.ko) this.sh.forcePose = 'victory'; }, 700);
       return;
@@ -397,6 +433,10 @@ Object.assign(Duel.prototype, {
   },
 
   *waitS(s) { yield* waitFor(this.world, s); },
+
+  dragonDiff() { return DRAGON_DIFF[this.level] || DRAGON_DIFF.mittel; },
+  // Anteil der Lebensenergie, die der Spieler vor der nächsten Runde zurückbekommt
+  dragonHeal() { const d = this.dragonDiff(); return this.round >= 4 ? d.healBig : d.heal; },
 
   // Lebensanzeige füllt sich in der Zwischensequenz
   *refill(stage, secs) {
@@ -512,7 +552,7 @@ Object.assign(Duel.prototype, {
       try { r = this.scene.next(); } catch (e) { console.error('Zwischensequenz', e); r = { done: true }; }
       if (r.done) { this.scene = null; this.nextRound(); }
     } else if (this.phase === 'finale') this.updateFinale(inp, dt);
-    else if (this.phase === 'dragonWin') this.updateDragonWin(dt);
+    else if (this.phase === 'dragonWin') this.updateDragonWin(dt, inp);
     else if (this.phase === 'shatter') {
       if (D.shatter && D.shatter.t > 4.8 && !D.shatter.done) { D.shatter.done = true; this.finish(); }
     }
@@ -576,8 +616,9 @@ Object.assign(Duel.prototype, {
   dragonPick(ad) {
     const D = this.dragon, st = D.stage, u = this.u;
     if (st < 4) return false;
-    if (st === 5 && D.beamCd <= 0 && ad > 170 * u && chance(0.6)) { D.beamCd = rnd(5.5, 8.5); this.aiStart('dragonbeam'); return true; }
-    if (ad > 220 * u && chance(0.5)) { this.aiStart('kiball', { n: st === 5 ? 3 : chance(0.4) ? 2 : 1 }); return true; }
+    const dd = this.dragonDiff();
+    if (st === 5 && D.beamCd <= 0 && ad > 170 * u && chance(0.6)) { D.beamCd = rnd(dd.beamCd[0], dd.beamCd[1]); this.aiStart('dragonbeam'); return true; }
+    if (ad > 220 * u && chance(0.5)) { this.aiStart('kiball', { n: (st === 5 ? 3 : chance(0.4) ? 2 : 1) + dd.kiN }); return true; }
     if (this.player.ground && chance(st === 5 ? 0.24 : 0.17)) { this.aiStart('stomp'); return true; }
     return false;
   },
@@ -720,9 +761,8 @@ Object.assign(Duel.prototype, {
   updateFinale(inp, dt) {
     const W = this.world, sh = this.sh, p = this.player, u = this.u, D = this.dragon, F = D.fin, L = this.level;
     F.t += dt; F.fx = Math.max(0, F.fx - dt * 5); F.fy = Math.max(0, F.fy - dt * 5);
-    const freeStep = { leicht: 0.13, mittel: 0.1, schwer: 0.085 }[L] || 0.1;
-    const press = { leicht: 4, mittel: 3, schwer: 2.5 }[L] || 3;
-    const shRate = { leicht: 8, mittel: 10, schwer: 12 }[L] || 10;
+    const dd = this.dragonDiff();
+    const freeStep = dd.free, press = dd.press, shRate = dd.shRate;
     const chargeKey = inp.special || inp.heavy;
     p.walkVx = 0; if (p.ground) p.vx = 0;
     if (F.step === 'rise') {
@@ -735,7 +775,7 @@ Object.assign(Duel.prototype, {
     }
     if (F.step !== 'rise' && F.step !== 'resolve') {
       sh.y = F.to.y + Math.sin(F.t * 2.2) * 6 * u;
-      if (!F.throwT) F.sh = Math.min(100, (F.t - 1.4) * 100 / 9.5);
+      if (!F.throwT) F.sh = Math.min(100, (F.t - 1.4) * 100 / dd.charge);
       const bp = this.shBallPos();
       if (chance(dt * 50)) { const a = rnd(0, 6.28), r = this.ballR(F.sh) + 120 * u; W.fx.add({ type: 'pixel', x: bp.x + Math.cos(a) * r, y: bp.y + Math.sin(a) * r, vx: -Math.cos(a) * 300 * u, vy: -Math.sin(a) * 300 * u, g: 0, life: 0.35, color: chance(0.5) ? '#ffffff' : COLORS.red, size: 3 }); }
       if (chance(dt * 4)) Sound.play('electric', 0.2, rnd(0.5, 0.8));
@@ -820,7 +860,7 @@ Object.assign(Duel.prototype, {
     this.stats.dmg += Math.ceil(sh.hp); sh.hp = 0;
   },
 
-  updateDragonWin(dt) {
+  updateDragonWin(dt, inp) {
     const W = this.world, sh = this.sh, p = this.player, u = this.u, D = this.dragon, w = D.win, T = W.terrain;
     w.t += dt;
     if (w.landT < 0) {
@@ -837,6 +877,7 @@ Object.assign(Duel.prototype, {
     const since = w.t - w.landT;
     if (sh.ko && chance(dt * 6)) W.fx.smokePuff(sh.x + rnd(-30, 30) * u, sh.y - 10 * u, 0.4 * u, 0.6);
     if (sh.ko && chance(dt * 4)) W.fx.sparks(sh.x + rnd(-30, 30) * u, sh.y - 12 * u, COLORS.amber, 3, 160);
+    if (this.level === 'schwer') { this.updateSecretFinish(dt, inp || {}, since); return; }
     if (since > 1.2 && p.state !== 'win') { p.state = 'win'; if (this.ra) this.ra.talk(pick(DR_RAVEN.win), true); }
     if (since > 2.8 && sh.ko) { sh.ko = false; sh.forcePose = 'crouch'; W.fx.smokePuff(sh.x, sh.y - 20 * u, 0.6 * u, 0.7); }
     if (since > 3.8 && !w.said) {
@@ -844,6 +885,74 @@ Object.assign(Duel.prototype, {
       this.say(DR_TALK.win, true);
     }
     if (since > 9 && !w.done) { w.done = true; this.finish(); }
+  },
+
+  // Geheimes Finish (nur auf Schwer): Shadepi kniet, „VOLLENDE ES“. Die Eingabe wird nicht angezeigt:
+  // unten, nach vorn (zu Shadepi), oben – dann Spezial. Raven flüstert nach ein paar Sekunden einen Tipp.
+  updateSecretFinish(dt, inp, since) {
+    const W = this.world, sh = this.sh, p = this.player, u = this.u, D = this.dragon, w = D.win;
+    if (!w.ask && since > 1.5) {
+      w.ask = { t: 0, seq: [], down: false, fwd: false, hinted: false };
+      sh.ko = false; sh.forcePose = 'crouch'; sh.facing = sign(p.x - sh.x) || 1;
+      p.facing = sign(sh.x - p.x) || 1;
+      W.cinema.letterbox(12); Sound.play('legacy_aura', 0.5, 0.5);
+      this.say(pick(DR_TALK.finishAsk), true);
+    }
+    const a = w.ask;
+    if (a && !w.res) {
+      a.t += dt;
+      const now = W.time, toward = sign(sh.x - p.x) || 1;
+      const down = !!inp.block, fwd = !!(toward > 0 ? inp.right : inp.left);
+      if (down && !a.down) a.seq.push(['D', now]);
+      if (fwd && !a.fwd) a.seq.push(['F', now]);
+      if (inp.jump || inp.navU) a.seq.push(['U', now]);
+      a.down = down; a.fwd = fwd;
+      a.seq = a.seq.filter((e) => now - e[1] < 2.5).slice(-6);
+      if (inp.special) {
+        if (a.seq.map((e) => e[0]).join('').endsWith('DFU')) this.startTrueFinish();
+        else { W.fx.label(p.x, p.y - 150 * u, '…', COLORS.muted, 18, 0.5); Sound.play('calib_error', 0.3, 1.2); }
+      }
+      if (!a.hinted && a.t > 3.5) { a.hinted = true; if (this.ra) this.ra.talk(DR_RAVEN.hint, true); }
+      if (a.t > 9 && !w.res) {
+        w.res = 'late'; w.resT = since;
+        sh.forcePose = 'arcade'; sh.arcadePose = AP.ready;
+        this.say(DR_TALK.finishLate, true);
+        p.state = 'win';
+        setTimeout(() => this.dragon && W.cinema.card('SHADEPI FREIGESCHALTET', 'NEUER KÄMPFER IM DOJO', COLORS.amber, 3, { always: true }), 1500);
+      }
+    }
+    if (w.res === 'late' && since - w.resT > 6.5 && !w.done) { w.done = true; this.finish(); }
+    if (w.res === 'true') this.updateTrueFinish(dt);
+  },
+
+  startTrueFinish() {
+    const W = this.world, p = this.player, u = this.u, D = this.dragon, w = D.win;
+    w.res = 'true'; w.tf = { t: 0 }; D.trueKing = true;
+    p.fpose = 'charge';
+    W.cinema.flash('#ffd27a', 0.6); W.cinema.shake(8, 0.5); W.cinema.slowmo(0.5, 0.6);
+    W.cinema.card('DRACHENFINISH', 'DER WEG DES DRACHEN', COLORS.amber, 2.6, { always: true });
+    Sound.play('legacy_aura', 1, 0.7); Sound.play('calib_accept', 0.8, 0.8);
+    W.fx.ring(p.x, p.y - 50 * u, '#ffd27a', 180 * u, 0.6, 5);
+  },
+
+  updateTrueFinish(dt) {
+    const W = this.world, sh = this.sh, p = this.player, u = this.u, D = this.dragon, w = D.win, f = w.tf;
+    const t0 = f.t; f.t += dt;
+    const at = (x) => t0 < x && f.t >= x;
+    if (f.t < 3.2 && chance(dt * 30)) W.fx.add({ type: 'pixel', x: p.x + rnd(-30, 30) * u, y: p.y - rnd(0, 90) * u, vx: 0, vy: -rnd(160, 300), g: 0, life: 0.6, color: pick(AURA_PAL.gold.spark), size: 3 });
+    if (at(0.8)) { p.fpose = 'throw'; Sound.play('drive_laser', 0.8, 0.8); W.cinema.shake(6, 2.4); }
+    if (f.t > 0.8 && f.t < 3.2 && chance(dt * 10)) W.fx.sparks(sh.x + rnd(-90, 90) * u, sh.y - rnd(20, 90) * u, '#ffd27a', 4, 260);
+    if (at(3.2)) {
+      // Der Drache steigt auf – und der Desktop heilt
+      W.cinema.flash('#fff6d8', 0.9); W.cinema.shake(14, 0.8);
+      Sound.play('drive_explosion', 0.9, 0.6); Sound.play('calib_accept', 0.9, 0.6);
+      for (const c of W.screen) if (c instanceof DeskCrack) { c.hot = '#ffd27a'; c.img = null; c.t = 0.25; c.dying = true; c.fadeK = 1; for (let i = 0; i < 3; i++) { const l = pick(c.lines), pt = pick(l.pts); W.fx.add({ type: 'pixel', x: pt[0], y: pt[1], vx: rnd(-30, 30), vy: -rnd(40, 120), g: 0, life: 1, color: '#ffd27a', size: 3 }); } }
+      p.fpose = null; p.state = 'win';
+    }
+    if (at(3.9)) { sh.forcePose = 'arcade'; sh.arcadePose = AP.ready; sh.facing = sign(p.x - sh.x) || 1; this.say(DR_TALK.finishTrue[0], true); }
+    if (at(5.4) && this.ra) this.ra.talk(pick(DR_RAVEN.trueKing), true);
+    if (at(7)) { this.say(DR_TALK.finishTrue[1], true); W.cinema.card('WAHRER DRAGONKING', 'SHADEPI ALS KÄMPFER FREIGESCHALTET', COLORS.amber, 3.4, { always: true }); }
+    if (f.t > 12 && !w.done) { w.done = true; this.finish(); }
   },
 
   // Verloren gegen den Drachen: der ganze Bildschirm zerbricht
@@ -875,6 +984,8 @@ Object.assign(Duel.prototype, {
     if (!D || !this.player) return;
     const sh = this.sh, u = this.u, t = this.world.time;
     if (D.aura && D.auraK > 0 && !sh.absent) drawFlameAura(ctx, sh.x, sh.y, u, t, D.auraK * (D.scream > 0 ? 1.3 : 1), D.aura);
+    const tf = D.win && D.win.tf;
+    if (tf && tf.t < 4.2) drawFlameAura(ctx, this.player.x, this.player.y, u, t, Math.min(1, tf.t * 3) * (tf.t > 3.4 ? Math.max(0, 1 - (tf.t - 3.4) / 0.8) : 1), 'gold');
     const F = D.fin;
     // Spieler-Aura beim Laden der Kugel
     if (F && (F.step === 'charge' || (F.step === 'clash' && this.player.fpose === 'throw'))) {
@@ -923,6 +1034,11 @@ Object.assign(Duel.prototype, {
     for (const b of D.beams) this.drawBeam(ctx, b);
     const F = D.fin;
     if (F) this.drawFinale(ctx);
+    const tf = D.win && D.win.tf;
+    if (tf && tf.t > 0.8 && tf.t < 4.6) {
+      const rise = tf.t > 3.2 ? Math.pow(tf.t - 3.2, 2) * 1500 * u : 0;
+      drawCoilDragon(ctx, sh.x, sh.y - 50 * u, t, u, Math.min(1, (tf.t - 0.8) / 0.4), rise);
+    }
   },
 
   drawBeam(ctx, b) {
@@ -1056,6 +1172,22 @@ Object.assign(Duel.prototype, {
     }
     ctx.font = '8px Silkscreen, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = COLORS.red;
     ctx.fillText('THE REAL DRAGON', T.W / 2, y + 16);
+    const ask = D.win && D.win.ask;
+    if (ask && !D.win.res) {
+      const py = T.floorY - 40 * this.u;
+      const g = ctx.createLinearGradient(T.W / 2 - 360, 0, T.W / 2 + 360, 0); g.addColorStop(0, 'rgba(7,10,18,0)'); g.addColorStop(0.2, 'rgba(7,10,18,0.88)'); g.addColorStop(0.8, 'rgba(7,10,18,0.88)'); g.addColorStop(1, 'rgba(7,10,18,0)');
+      ctx.fillStyle = g; ctx.fillRect(T.W / 2 - 360, py - 70, 720, 92);
+      const pulse = 1 + 0.05 * Math.sin(t * 6);
+      ctx.font = `${Math.round(40 * pulse)}px ShadepiPixel, monospace`; ctx.fillStyle = COLORS.amber; ctx.shadowColor = COLORS.amber; ctx.shadowBlur = 16;
+      ctx.fillText('VOLLENDE ES', T.W / 2, py - 40); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#2a1a08'; ctx.fillRect(T.W / 2 - 150, py - 10, 300, 6);
+      ctx.fillStyle = COLORS.amber; ctx.fillRect(T.W / 2 - 150, py - 10, 300 * Math.max(0, 1 - ask.t / 9), 6);
+      if (ask.t > 5) {
+        const fwd = this.sh.x > this.player.x ? '→' : '←';
+        ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t * 3); ctx.font = '12px Silkscreen, monospace'; ctx.fillStyle = '#ffe08a';
+        ctx.fillText(`↓  ${fwd}  ↑  + ${this.padConnected ? 'LB' : 'E'}`, T.W / 2, py + 12); ctx.globalAlpha = 1;
+      }
+    }
     const F = D.fin, pad = !!this.padConnected;
     if (F && (F.step === 'bound' || F.step === 'charge' || F.step === 'clash')) {
       const py = T.floorY - 30 * this.u;

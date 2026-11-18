@@ -133,12 +133,25 @@ const GROUP = { idle: 0, walk: 1, attack: 2, hit: 3 };
 // 10/11 Tritt, 12/13 Spezial, 14 Sieg, 15 Landung/Ducken.
 const AP = { ready: 0, breath: 1, walkA: 2, walkB: 3, jump: 4, block: 5, hurt: 6, ko: 7, punch0: 8, punch1: 9, kick0: 10, kick1: 11, special0: 12, special1: 13, victory: 14, land: 15 };
 const AP_WALK = [2, 0, 3, 1];
+// Laufen: nur die beiden Schrittbilder im Wechsel, Takt nach zurückgelegtem Weg (keine rutschenden Füße),
+// dazwischen ein leichtes Wippen. Die Stehbilder als Zwischenschritt ließen die Figuren nicken und humpeln.
+const AP_STEP = [AP.walkA, AP.walkB];
+function arcadeStep(ent) { return AP_STEP[Math.floor(ent.stepPhase || 0) % 2]; }
+function arcadeBob(ent, u) { return -Math.sin(((ent.stepPhase || 0) % 1) * Math.PI) * 2.4 * u; }
+// Diese Bilder werden am Rumpf der Bereitpose ausgerichtet (die Fußanker der Schrittbilder liegen woanders)
+const ARC_ALIGN = { 1: true, 2: true, 3: true };
 function hasArcade(id) { return !!(MANIFEST.arcade && MANIFEST.arcade.fighters[id]); }
 function arcadeScale(S) { const A = MANIFEST.arcade; return S * A.unit / A.keep; }
 function drawArcade(ctx, id, frame, x, y, S, opts = {}) {
   const A = MANIFEST.arcade, f = A && A.fighters[id] && A.fighters[id].frames[frame];
   if (!f) return false;
-  drawRegion(ctx, IMG['arcade' + f.s], f.r[0], f.r[1], f.r[2], f.r[3], f.a[0], f.a[1], x, y, arcadeScale(S), opts);
+  const sc = arcadeScale(S);
+  if (ARC_ALIGN[frame] && f.t !== undefined) {
+    const r = A.fighters[id].frames[0];
+    if (r && r.t !== undefined) x += (r.t - f.t) * sc * (opts.flip ? -1 : 1);
+  }
+  if (opts.bob) y += opts.bob;
+  drawRegion(ctx, IMG['arcade' + f.s], f.r[0], f.r[1], f.r[2], f.r[3], f.a[0], f.a[1], x, y, sc, opts);
   return true;
 }
 // Mündung / offene Hand relativ zum Fußpunkt (Weltkoordinaten)

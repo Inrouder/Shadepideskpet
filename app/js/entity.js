@@ -89,6 +89,8 @@ class Entity {
         if (Math.abs(this.vx) < 30 && this.thrown) this.thrown = false;
       }
     }
+    // Schrittzähler für die Laufanimation (ein Schrittbild je ~34 Einheiten Weg)
+    if (this.ground) this.stepPhase = (this.stepPhase || 0) + Math.abs(this.vx) * dt / (34 * (this.world.u || 1));
     if (!this.ground) {
       this.airTime += dt;
       this.vy += GRAVITY * this.gravity * dt;
