@@ -81,6 +81,8 @@ jobs:
           if (-not $res.visible) { throw 'Overlay nach dem Spielmodus nicht wieder sichtbar' }
           if ($res.mouseRearms -lt 1 -or $res.mouseAck -lt 1) { throw "Maus nach dem Spielmodus nicht neu eingerichtet ($($res.mouseRearms)/$($res.mouseAck))" }
           if ($res.renderer.frames -lt 1) { throw 'Animation läuft nicht' }
+          Write-Output "News: $($res.newsTotal) Meldungen · $($res.newsSources)"
+          if ($res.newsTotal -lt 1) { Write-Output '::warning::Keine Gaming-News geladen (Quellen nicht erreichbar?)' }
           # Zweiter Monitor (simuliert): eigenes Fenster, gemeinsame Welt
           $out2 = Join-Path $env:RUNNER_TEMP 'selftest2.json'
           $env:DESKPET_FAKE_DISPLAYS = '[{"id":1,"bounds":{"x":0,"y":0,"width":1024,"height":768},"workArea":{"x":0,"y":0,"width":1024,"height":728},"scaleFactor":1},{"id":2,"bounds":{"x":1024,"y":0,"width":1280,"height":720},"workArea":{"x":1024,"y":0,"width":1280,"height":680},"scaleFactor":1.25}]'

@@ -244,3 +244,48 @@ body { font-family: 'ShadepiPixel', monospace; color: var(--text); }
 .card.dojo { border-color: #5a2733; background: linear-gradient(90deg, rgba(255,49,80,0.16), rgba(13,20,32,0.85)); grid-column: 1 / -1; }
 .card.dojo:hover { border-color: var(--red); }
 #dojo .dojo-panel.dojo-select { max-width: min(1000px, 98vw); }
+
+/* ------------------------------------------------------------ Menü verschiebbar */
+.menu-head.drag-handle { cursor: move; user-select: none; }
+.menu-head.drag-handle .close { cursor: pointer; }
+#menu.dragging { animation: none; opacity: 0.92; filter: drop-shadow(0 16px 30px rgba(0,0,0,0.7)); }
+
+/* ------------------------------------------------------------ Gaming-News */
+.holo.news { width: 330px; pointer-events: auto; border-color: rgba(255,49,80,0.8);
+  background: linear-gradient(180deg, rgba(255,49,80,0.14), rgba(7,10,18,0.88));
+  box-shadow: 0 0 24px rgba(255,49,80,0.35), inset 0 0 22px rgba(255,49,80,0.12); }
+.holo.news::before { background: repeating-linear-gradient(0deg, rgba(255,49,80,0.07) 0 1px, transparent 1px 3px); }
+.holo.news .hh b { color: #ff6b80; text-shadow: 0 0 6px var(--red); }
+.holo.news .nsrc { font-family: Silkscreen, monospace; font-size: 7px; color: var(--amber); letter-spacing: 1px; }
+.holo.news .ntitle { font-size: 19px; line-height: 18px; color: #fff; margin: 3px 0 4px; }
+.holo.news .nteaser { font-size: 14px; line-height: 14px; color: var(--muted); max-height: 58px; overflow: hidden; }
+.holo.news .nbtns { display: flex; gap: 5px; margin-top: 7px; position: relative; z-index: 1; }
+.holo.news .nbtns button { font-family: Silkscreen, monospace; font-size: 7px; background: rgba(13,20,32,0.9); border: 1px solid rgba(255,49,80,0.6); color: var(--text); padding: 5px 8px; cursor: pointer; }
+.holo.news .nbtns button:first-child { flex: 1; }
+.holo.news .nbtns button:hover { background: rgba(255,49,80,0.2); color: #fff; }
+.news-top { display: flex; flex-direction: column; gap: 4px; }
+.news-top .row { display: flex; align-items: center; gap: 6px; font-size: 15px; padding: 2px 6px; background: rgba(13,20,32,0.85); border: 1px solid #253043; }
+.news-top .row span { min-width: 80px; }
+.news-top .radio button { flex: 1; font-family: Silkscreen, monospace; font-size: 8px; background: #0d1420; border: 1px solid #253043; color: var(--muted); padding: 5px 2px; cursor: pointer; }
+.news-top .radio button.on { color: #fff; border-color: var(--red); background: rgba(255,49,80,0.15); }
+.news-top .actions { margin-top: 2px; }
+.news-list { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.news-item { position: relative; display: flex; flex-direction: column; padding: 4px 30px 5px 8px; background: rgba(13,20,32,0.85); border: 1px solid #253043; border-left: 2px solid var(--red); cursor: pointer; }
+.news-item:hover { border-color: var(--red); background: rgba(255,49,80,0.08); }
+.news-item small { font-family: Silkscreen, monospace; font-size: 7px; color: var(--amber); letter-spacing: 0.5px; }
+.news-item span { font-size: 15px; line-height: 15px; color: #fff; }
+.news-item.read { border-left-color: #253043; }
+.news-item.read span { color: var(--muted); }
+.news-item .go { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #0d1420; border: 1px solid #253043; color: var(--cyan); cursor: pointer; font-size: 12px; }
+.news-item .go:hover { border-color: var(--cyan); }
+.news-empty { font-size: 15px; color: var(--muted); padding: 10px; text-align: center; }
+
+/* ------------------------------------------------------------ Autostart-Frage */
+.askcard { position: fixed; right: 24px; bottom: 90px; width: 330px; padding: 12px 14px; box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(98,227,238,0.12), rgba(7,10,18,0.94)); border: 1px solid var(--cyan);
+  box-shadow: 0 0 24px rgba(98,227,238,0.3); animation: holoin 0.45s steps(6) both; }
+.askcard.out { animation: holoout 0.3s steps(5) both; }
+.askcard b { font-family: Silkscreen, monospace; font-size: 9px; font-weight: normal; color: var(--cyan); letter-spacing: 1px; }
+.askcard p { font-size: 15px; line-height: 15px; color: var(--text); margin: 6px 0 8px; }
+.askcard .btns { display: flex; gap: 5px; }
+.askcard .act.go { background: rgba(98,227,238,0.18); border-color: var(--cyan); color: #fff; flex: 2; }

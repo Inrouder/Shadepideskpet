@@ -7,6 +7,7 @@ const DEFAULT_SETTINGS = {
   bubbles: true, hideFullscreen: true, climbWindows: true, display: 0, dock: true, paused: false, debug: false,
   reminders: [], chime: false, breakEvery: 0, drinkEvery: 0, gamePause: true, gameOwn: [], gameIgnore: [], sysReports: true, romance: true,
   dojo: {}, allScreens: true, arcadeStyle: true, companions: true,
+  news: true, newsLang: 'de', newsEvery: 'normal', autostartAsked: false, menuPos: null,
 };
 
 // ---------------------------------------------------------------- Browser-Vorschau
@@ -115,6 +116,7 @@ class DemoWindows {
 
   function layout(l) {
     if (l.version) world.version = l.version;
+    if (l.autostarted) world.autostarted = true;
     world.layoutDisplays = l.displays || 1;
     world.resize(l.width, l.height);
     world.terrain.setLayout(l);
@@ -169,6 +171,7 @@ class DemoWindows {
   const reminders = new Reminders(world, api, bridge);
   world.reminders = reminders;
   const sys = new SysReport(world, bridge);
+  const newsReader = new NewsReader(world, bridge);
   world.sys = sys;
   if (bridge) bridge.on('sensors', (d) => sys.onData(d));
   const updates = new UpdateUI(world, bridge);
@@ -181,7 +184,10 @@ class DemoWindows {
       world.gaming = g.active;
       Sound.setMusic(null);
       if (was && !g.active) { reminders.holdUntil = Date.now() + 7000; setTimeout(() => director.afterGame(g), 900); }
+      if (g.active && g.name) world.lastGame = { name: g.name, at: Date.now() };
+      if (!g.active && was && world.lastGame) world.lastGame.at = Date.now();
     });
+    bridge.on('news', (d) => newsReader.set(d));
   }
   // Erinnerungen laufen auch weiter, wenn das Overlay im Spielmodus unsichtbar ist
   setInterval(() => { if (world.gaming) reminders.update(1.01); }, 1000);
@@ -192,6 +198,13 @@ class DemoWindows {
   const dojo = new Dojo(world, bridge, input);
   world.dojo = dojo; world.ui = ui;
   director.setup();
+  // Mit Windows gestartet: kurze Begrüßung
+  if (world.autostarted) setTimeout(() => {
+    const h = world.presentHeroes()[0];
+    if (h) h.talk(h.name === 'shadepi' ? pick(['Ich bin mit Windows aufgewacht. Die Wache beginnt.', 'Rechner an, Klinge bereit.']) : pick(['Raven ist mit hochgefahren! Guten Start!', 'Booten abgeschlossen. Ich bin da!']), true);
+  }, 6000);
+  // Beim ersten Start einmal fragen, ob das Maskottchen mit Windows starten soll
+  if (bridge && !settings.autostartAsked && !settings.autostart && settings.canAutostart !== false) setTimeout(() => ui.askAutostart(), 45000);
   applySettings();
   Object.assign(window.PET, { director, ui, input, api, reminders, updates, sys, dojo });
   // Dojo direkt öffnen (Vorschau/Tests): ?dojo=1 bzw. ?duel=oni&level=schwer
@@ -217,6 +230,7 @@ class DemoWindows {
       reminders.update((now - (frame.prev || now)) / 1000);
       updates.update();
       sys.update();
+      newsReader.update(Math.min(dt, 0.1));
       frame.prev = now;
       world.update(dt);
       world.draw();

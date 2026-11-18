@@ -51,7 +51,7 @@ class Input {
     if (this.world.duel) { this.setIgnore(false, 'home'); document.body.style.cursor = this.world.duel.player && !this.world.duel.inMenu ? 'crosshair' : ''; return null; }
     const key = this.screenKey(x, y);
     if (key !== this.cur) { if (!this.drag && !this.pending) this.setIgnore(true, this.cur); this.cur = key; }
-    const overUi = key === 'home' && this.ui.isOver(x, y);
+    const overUi = key === 'home' && (this.ui.isOver(x, y) || !!this.ui.dragging);
     const ent = overUi ? null : this.entityAt(x, y);
     const capture = !!(this.drag || this.pending || overUi || ent);
     if (this.drag) this.setAllIgnore(false); // beim Ziehen über Monitorgrenzen hinweg alles empfangen

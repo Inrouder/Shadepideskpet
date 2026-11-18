@@ -6,7 +6,7 @@ const EVENT_LABELS = {
   drohnen: 'Drohnenpatrouille', schwarm: 'Drohnenschwarm', viren: 'Virusausbruch', gang: 'Cyberpunk-Gang', bots: 'Kampfbots', kenzo: 'Kenzō fordert heraus',
   ice: 'Boss: ICE-Wächter', jackal: 'Boss: Chrome Jackal', training: 'Shadepi trainiert', luke: 'Raven repariert Kabel',
   besuch: 'Partner kommt vorbei', sparring: 'Sparring', plaudern: 'Plaudern', ball: 'Ballspiel', wechsel: 'Schichtwechsel',
-  system: 'Systembericht', blick: 'Verliebter Blick', bluete: 'Shadepis Lichtblüte', dojo: 'Dojo: Kampf gegen Shadepi',
+  system: 'Systembericht', blick: 'Verliebter Blick', bluete: 'Shadepis Lichtblüte', news: 'Gaming-News vorlesen', dojo: 'Dojo: Kampf gegen Shadepi',
 };
 
 function timeGreeting() {
@@ -137,7 +137,7 @@ class Director {
       ['ice', chaos ? 0.5 : 0.18], ['jackal', chaos ? 0.5 : 0.18],
       ['training', hasSh ? 2.2 : 0], ['luke', hasRa ? 2.2 : 0],
       ['besuch', !both && this.S.mode !== 'beide' ? 1.6 : 0],
-      ['sparring', both ? 1.2 : 0], ['plaudern', both ? 1.4 : 0], ['ball', both ? 0.8 : 0],
+      ['sparring', both ? 1.2 : 0], ['plaudern', both ? 2.2 : 0], ['news', hasSh && W.news && W.news.on && W.news.unread().length ? 0.8 : 0], ['ball', both ? 0.8 : 0],
       ['wechsel', this.S.mode === 'wechselnd' && !both ? 0.6 : 0],
       ['system', hasRa && this.S.sysReports && W.sys && W.sys.data ? 1.3 : 0],
       ['blick', both && this.S.romance ? 0.9 : 0], ['bluete', both && this.S.romance ? 0.7 : 0],
@@ -188,6 +188,7 @@ class Director {
       case 'ball': if (present.length === 2) this.run(this.ballGame()); break;
       case 'alles-weg': W.clearAll(); break;
       case 'system': if (W.sys) W.sys.report(); break;
+      case 'news': if (W.news) W.news.start(); break;
       case 'blick': if (present.length === 2) this.run(this.lovingLook()); break;
       case 'bluete': if (present.length === 2) this.run(this.flowerGift()); break;
     }
@@ -238,7 +239,7 @@ class Director {
     const ra = W.hero('raven'), sh = W.hero('shadepi');
     if (!this.free(ra) || !this.free(sh)) return;
     const same = ra.wid === sh.wid;
-    const ex = pick(LINES.duo);
+    const ex = this.pickDialogue();
     const tasks = [ra, sh].map((h) => { const t = { done: false }; h.setTask('chat', (function* () { while (!t.done) { h.walkVx = 0; yield; } })(), 1.5); return t; });
     // aufeinander zugehen
     const mid = (ra.x + sh.x) / 2;
@@ -259,6 +260,26 @@ class Director {
       yield* this.both(clamp(1.6 + text.length * 0.05, 2, 4));
     }
     tasks.forEach((t) => (t.done = true));
+  }
+
+  // Gespräch passend zur Lage wählen: Tageszeit, gerade gekämpft, zweiter Monitor, Dojo, Spiel, News
+  pickDialogue() {
+    const W = this.world, h = new Date().getHours();
+    const pools = [[LINES.duo, 6]];
+    if (h >= 22 || h < 5) pools.push([LINES.duoNight, 3]);
+    if (h >= 5 && h < 10) pools.push([LINES.duoMorning, 3]);
+    if (W.stats.fightStart && W.time - W.stats.fightStart < 150) pools.push([LINES.duoAfterFight, 4]);
+    if (W.terrain.multi) pools.push([LINES.duoMulti, 1.5]);
+    if ((W.settings.dojo || {}).wins || (W.settings.dojo || {}).losses) pools.push([LINES.duoDojo, 1.5]);
+    if (W.lastGame && Date.now() - W.lastGame.at < 3 * 3600 * 1000) pools.push([LINES.duoGame(W.lastGame.name), 3]);
+    const fresh = W.news && W.news.items.find((i) => W.news.read.has(i.id));
+    if (fresh) pools.push([LINES.duoNews(fresh.title.length > 60 ? fresh.title.slice(0, 57) + '…' : fresh.title), 2]);
+    const pool = weighted(pools);
+    this.lastDialogs = this.lastDialogs || [];
+    let ex = pick(pool);
+    for (let i = 0; i < 6 && this.lastDialogs.includes(ex); i++) ex = pick(pick([pool, LINES.duo]));
+    this.lastDialogs = [...this.lastDialogs, ex].slice(-8);
+    return ex;
   }
 
   *sparring() {

@@ -41,7 +41,7 @@ Ein Desktop-Maskottchen im Stil von **[ShadepiRPG](https://github.com/Inrouder/S
   - **Begleiter:** Ravens **Drohne** schwebt im Kampf hinter ihr und schießt mit, Shadepis **Nanitenschwarm** kreist um ihn und sticht in Gegner. Ab und zu zeigen die beiden ihre Begleiter auch einfach so vor.
   - **Kenzō fordert heraus:** Manchmal kommt Kenzō für ein Sparring mit Shadepi vorbei, blockt viel, verneigt sich am Ende und zieht weiter.
 - **Mehrere Monitore:** Shadepi und Raven laufen über **alle Bildschirme**. Sie wechseln über die Taskleiste hinüber, fallen auf einen tieferen Nachbarboden oder springen (Schattensprung/Greifhaken) auf einen höheren, klettern dort an Fenstern hoch, und du kannst sie mit der Maus von einem Monitor auf den anderen ziehen. Szenen, Kämpfe, Erinnerungen und das Dojo spielen auf dem **Heimbildschirm** – wer gerade drüben ist, kommt per Schattensprung zurück. Läuft auf einem Monitor ein Vollbildprogramm, bleibt er frei.
-- **Eigenleben:** Shadepi **trainiert** selbstständig, schlägt dabei manchmal versehentlich ein **Loch in den Bildschirm** und flickt es danach mit **Klebeband**. Raven öffnet ab und zu eine **Wartungsluke** im Bildschirm, scannt, löst die Schrauben und **verkabelt die Leitungen neu**, ARToS meldet „Signal 100 Prozent“. Dazu kommen Sparring (Shadepi pariert Ravens Schüsse), Gespräche zwischen den beiden, Ballspiel, Nickerchen und Kommentare zu deinen Fenstertiteln.
+- **Eigenleben:** Shadepi **trainiert** selbstständig, schlägt dabei manchmal versehentlich ein **Loch in den Bildschirm** und flickt es danach mit **Klebeband**. Raven öffnet ab und zu eine **Wartungsluke** im Bildschirm, scannt, löst die Schrauben und **verkabelt die Leitungen neu**, ARToS meldet „Signal 100 Prozent“. Dazu kommen Sparring (Shadepi pariert Ravens Schüsse), viele Gespräche zwischen den beiden (passend zu Tageszeit, gerade beendeten Kämpfen, deinem zuletzt gespielten Spiel oder den News), Ballspiel, Nickerchen und Kommentare zu deinen Fenstertiteln.
 
 ## Wecker, Timer und Erinnerungen
 
@@ -61,6 +61,12 @@ Ab und zu (und über Menü → Szenen → „Systembericht“) projiziert Raven 
 - GPU: bei NVIDIA über `nvidia-smi` (Last + Temperatur), sonst die Auslastung über die Windows-Leistungsindikatoren.
 - Temperaturen ohne Administratorrechte über die ACPI-Thermalzone (ungefährer Wert). **Genaue CPU-/GPU-Temperaturen** gibt es, wenn [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) im Hintergrund läuft – Raven liest es automatisch aus.
 - Abschaltbar im Menü (System → „Systemberichte (Raven)“).
+
+## Gaming-News
+
+Shadepi ruft ab und zu ein rotes **Ordensnetz-Hologramm** auf und liest die neuesten Schlagzeilen vor – aus den RSS-Feeds großer Spieleseiten: auf Deutsch **Mein-MMO, PC Games, GameStar, GamePro, PCGH** und **Gamereactor**, auf Englisch **PC Gamer, IGN, Polygon, Kotaku, Rock Paper Shotgun** und **Eurogamer**. Die Meldungen landen in einer lokalen Datenbank (bis zu 400 Stück, zwei Wochen), alle 30 Minuten kommen neue dazu. Shadepi kommentiert jede Meldung passend zum Thema („Ein Patch. Klebeband für Spiele.“, „Kostenlos? Raven, hol das. Schnell.“), Raven mischt sich manchmal ein, und **„Artikel öffnen“** bringt dich direkt zum Artikel im Browser.
+
+Im Menü unter **NEWS** stehen alle Meldungen: anklicken lässt Shadepi sie vorlesen, ↗ öffnet den Artikel. Dort wählst du auch Sprache (Deutsch, Englisch, beide), wie oft er vorliest, oder schaltest es ab. Während Spielen und Kämpfen bleibt er still.
 
 ## Zweisamkeit
 
@@ -131,6 +137,7 @@ Neue Versionen entstehen automatisch: Wird `version` in `package.json` erhöht, 
 | Gegner anklicken / packen / werfen | Du kannst mithelfen: Gegner gegeneinander werfen funktioniert. |
 | Spielzeug anklicken | wird weggekickt; Power-ups lässt du von der nächsten Figur einsammeln. |
 | **Rechtsklick auf eine Figur**, Klick auf das **Tray-Symbol**, die **Seitenleiste** rechts oder **Strg+Alt+P** | Menü öffnen. |
+| Menü an der **Kopfzeile ziehen** | Menü wie ein Fenster verschieben – es bleibt dann dort und schließt nicht mehr von selbst. **Doppelklick** auf die Kopfzeile: wieder am Mauszeiger öffnen. |
 | **Strg+Alt+H** | Alles aus-/einblenden. |
 | **Strg+Alt+D** | Dojo öffnen (Kampf gegen Shadepi). |
 
@@ -145,7 +152,7 @@ Neue Versionen entstehen automatisch: Wird `version` in `package.json` erhöht, 
 - **Figuren:** Modus wählen, Partner rufen, Schichtwechsel.
 - **System:** Arcade-Kampfstil und Begleiter (an/aus), Größe, Lautstärke, Aktivität (Ruhig/Normal/Chaos), Kino-Effekte, Bildschirmschäden, Fensterklettern, Sprechblasen, Kampfmusik, bei Vollbild ausblenden, Ruhemodus, Beenden.
 
-Einstellungen werden gespeichert. Über das Tray-Menü lässt sich außerdem **„Mit Windows starten“** einschalten. Bei mehreren Monitoren gibt es dort **„Auf allen Monitoren laufen“** (auch im Menü unter System) und die Wahl des **Heimbildschirms**.
+Einstellungen werden gespeichert. **Autostart:** „Mit Windows starten“ gibt es im Menü unter System und im Tray; beim ersten Start fragt Shadepi (oder Raven) einmal nach. Startet das Programm mit Windows, begrüßen die beiden dich entsprechend. Bei mehreren Monitoren gibt es dort **„Auf allen Monitoren laufen“** (auch im Menü unter System) und die Wahl des **Heimbildschirms**.
 
 ## Installation (Windows)
 

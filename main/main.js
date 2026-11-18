@@ -8,6 +8,7 @@ const fs = require('fs');
 const { WindowScanner, toOverlaySpace } = require('./windows');
 const { Updater } = require('./updater');
 const { Sensors } = require('./sensors');
+const { News } = require('./news');
 // Chromium hält transparente Overlays nach der Bildschirmsperre sonst manchmal für
 // „verdeckt“ und zeichnet nicht mehr – die Animation bliebe stehen.
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -20,6 +21,8 @@ if (process.env.DESKPET_FAKE_DISPLAYS) {
   });
 }
 let sensors = null;
+let news = null;
+const startedByLogin = process.argv.includes('--autostart');
 let updater = null;
 let gameDetect = null;
 let gaming = { active: false, name: '', exe: '', reason: '', since: 0 };
@@ -54,6 +57,11 @@ const DEFAULTS = {
   allScreens: true,         // Figuren laufen über alle Monitore
   arcadeStyle: true,        // NEON-KOMBAT-Posen im Kampf
   companions: true,         // Ravens Drohne, Shadepis Naniten
+  news: true,               // Shadepi liest Gaming-News vor
+  newsLang: 'de',           // de | en | beide
+  newsEvery: 'normal',      // selten | normal | oft
+  autostartAsked: false,    // beim ersten Start einmal fragen
+  menuPos: null,            // verschobenes Menü bleibt an seinem Platz
 };
 
 let overlay = null;
@@ -94,6 +102,7 @@ function layoutPayload() {
   const d = targetDisplay();
   const hb = d.bounds;
   return {
+    autostarted: startedByLogin, displays: screen.getAllDisplays().length,
     screens: activeDisplays().map((x) => ({
       id: String(x.id), home: x.id === d.id, scale: x.scaleFactor,
       x: x.bounds.x - hb.x, y: x.bounds.y - hb.y, w: x.bounds.width, h: x.bounds.height,
@@ -189,8 +198,9 @@ function createOverlay() {
   overlay.loadFile(path.join(__dirname, '..', 'app', 'index.html'));
   overlay.webContents.on('did-finish-load', () => {
     overlay.webContents.send('layout', layoutPayload());
-    overlay.webContents.send('settings', settings);
+    overlay.webContents.send('settings', settingsPayload());
     if (lastWindows) sendWindows(lastWindows);
+    if (news && news.items.length) overlay.webContents.send('news', news.payload());
   });
   // Manche Programme drängeln sich nach vorn; regelmäßig wieder nach oben holen.
   setInterval(() => { if (!gaming.active) for (const w of allWins()) if (w.isVisible()) { w.setAlwaysOnTop(true, 'screen-saver'); w.moveTop(); } }, 4000);
@@ -238,10 +248,15 @@ function cursorInOverlay() {
   return { x: p.x - b.x, y: p.y - b.y };
 }
 
+// Einstellungen + abgeleitete Werte (Autostart steht in Windows, nicht in der Datei)
+function settingsPayload() { return { ...settings, autostart: autostartEnabled(), canAutostart: app.isPackaged }; }
+
 function setSetting(key, value) {
   settings[key] = value;
   saveSettings();
-  send('settings', settings);
+  send('settings', settingsPayload());
+  if (key === 'newsLang' && news) news.setLang(value);
+  if (key === 'news' && news) { if (value) news.start(settings.newsLang); else news.stop(); }
   if (key === 'display' || key === 'allScreens') placeOverlay();
   if (key.startsWith('game')) setTimeout(checkGames, 50);
   buildTray();
@@ -251,7 +266,7 @@ const EVENTS = [
   ['drohnen', 'Drohnenpatrouille'], ['schwarm', 'Drohnenschwarm'], ['viren', 'Virusausbruch'],
   ['gang', 'Cyberpunk-Gang'], ['bots', 'Kampfbots'], ['kenzo', 'Kenzō fordert heraus'], ['ice', 'Boss: ICE-Wächter'], ['jackal', 'Boss: Chrome Jackal'],
   ['training', 'Shadepi trainiert'], ['luke', 'Raven repariert Kabel'], ['system', 'Raven: Systembericht'], ['besuch', 'Partner kommt vorbei'], ['sparring', 'Sparring'],
-  ['blick', 'Verliebter Blick'], ['bluete', 'Shadepis Lichtblüte'],
+  ['blick', 'Verliebter Blick'], ['bluete', 'Shadepis Lichtblüte'], ['news', 'Shadepi: Gaming-News vorlesen'],
 ];
 
 function buildTray() {
@@ -296,8 +311,25 @@ function buildTray() {
 
 // Bei der portablen EXE zeigt execPath in einen Temp-Ordner – dann die echte Datei verwenden.
 const exePath = () => process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
-function autostartEnabled() { try { return app.getLoginItemSettings({ path: exePath() }).openAtLogin; } catch (_) { return false; } }
-function setAutostart(on) { try { app.setLoginItemSettings({ openAtLogin: !!on, path: exePath() }); } catch (_) {} buildTray(); }
+// Autostart: Windows-Anmeldung startet die EXE mit --autostart (Begrüßung, kein Intro-Trubel).
+const AUTOSTART_ARGS = ['--autostart'];
+function autostartEnabled() {
+  try {
+    const a = app.getLoginItemSettings({ path: exePath(), args: AUTOSTART_ARGS });
+    if (a.openAtLogin) return true;
+    return app.getLoginItemSettings({ path: exePath() }).openAtLogin; // Einträge älterer Versionen
+  } catch (_) { return false; }
+}
+function setAutostart(on) {
+  try {
+    app.setLoginItemSettings({ openAtLogin: false, path: exePath() }); // alten Eintrag ohne Argument entfernen
+    app.setLoginItemSettings({ openAtLogin: !!on, path: exePath(), args: AUTOSTART_ARGS, name: 'Shadepi Deskpet' });
+    log(`Autostart ${on ? 'an' : 'aus'} (${exePath()})`);
+  } catch (e) { log('Autostart: ' + e.message); }
+  if (!settings.autostartAsked) { settings.autostartAsked = true; saveSettings(); }
+  send('settings', settingsPayload());
+  buildTray();
+}
 
 function openDojo() {
   if (!overlay) return;
@@ -316,6 +348,7 @@ function toggleVisible() {
 function gamePaused() { return gaming.active && !gameOverride; }
 function applyGaming() {
   if (!overlay || overlay.isDestroyed()) return;
+  if (news) news.paused = gamePaused();
   if (gamePaused()) hideAll();
   else if (!userHidden && !overlay.isVisible()) showAll();
   send('gaming', { active: gamePaused(), name: gaming.name, exe: gaming.exe, reason: gaming.reason, minutes: gaming.since ? Math.round((Date.now() - gaming.since) / 60000) : 0 });
@@ -371,6 +404,11 @@ if (!app.requestSingleInstanceLock()) {
     setTimeout(() => sensors.start(), 4000);
     setInterval(() => { if (sensors) sensors.paused = gamePaused(); }, 2000);
 
+    news = new News(app.getPath('userData'), log);
+    news.onUpdate = (p) => send('news', p);
+    if (settings.news) news.start(settings.newsLang);
+    if (process.argv.some((a) => a.startsWith('--selftest='))) setTimeout(() => news.refresh(), 800);
+
     updater = new Updater((ch, st) => { send(ch, st); if (st.state === 'ready' || st.state === 'none') buildTray(); }, log);
     updater.start();
 
@@ -392,7 +430,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     if (st && process.env.DESKPET_TEST_JS) setTimeout(() => overlay.webContents.executeJavaScript(process.env.DESKPET_TEST_JS).catch((e) => log('Test-JS: ' + e.message)), 2500);
     if (st) setTimeout(async () => {
-      const out = { ...scanner.status(), surfacesRaw: lastWindows ? lastWindows.w.length : 0, games: !!gameDetect, gameInfo: lastGameInfo, visible: overlay.isVisible(), mouseRearms, mouseAck, displays: screen.getAllDisplays().length, views: views.size, viewsVisible: [...views.values()].filter((w) => w.isVisible()).length, stallCount };
+      const out = { ...scanner.status(), surfacesRaw: lastWindows ? lastWindows.w.length : 0, games: !!gameDetect, gameInfo: lastGameInfo, visible: overlay.isVisible(), mouseRearms, mouseAck, displays: screen.getAllDisplays().length, views: views.size, newsTotal: news ? news.items.length : -1, newsSources: news ? Object.entries(news.status).map(([k, v]) => `${k}:${v.ok ? v.n : 'x ' + (v.err || '')}`).join(' | ') : '', autostartOk: typeof autostartEnabled() === 'boolean', viewsVisible: [...views.values()].filter((w) => w.isVisible()).length, stallCount };
       try {
         out.renderer = await overlay.webContents.executeJavaScript(`(() => { const W = PET.world, T = W.terrain; return { screens: T.screens.length, floors: T.floors().length, views: W.views ? W.views.list.length : -1, minX: T.minX, maxX: T.maxX, frames: Math.round(W.time * 10) / 10 }; })()`);
         if (process.env.DESKPET_SHOTS) {
@@ -402,7 +440,7 @@ if (!app.requestSingleInstanceLock()) {
       } catch (e) { out.rendererError = e.message; }
       try { fs.writeFileSync(st.slice(11), JSON.stringify(out)); } catch (_) {}
       app.exit(0);
-    }, 6000);
+    }, 10000);
 
     screen.on('display-metrics-changed', placeOverlay);
     // Nach Standby/Sperrbildschirm verliert Windows ebenfalls gern die Maus-Weiterleitung
@@ -459,6 +497,9 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('open-log', () => shell.openPath(path.join(app.getPath('userData'))));
   ipcMain.on('hide', () => toggleVisible());
   ipcMain.on('autostart', (_e, on) => setAutostart(on));
+  ipcMain.on('news-refresh', () => { if (news) news.refresh(); });
+  // Links nur ins Netz (Artikel), nie Dateien oder Programme
+  ipcMain.on('open-url', (_e, url) => { if (typeof url === 'string' && /^https?:\/\//i.test(url) && url.length < 2000) shell.openExternal(url); });
 
   app.on('will-quit', () => { globalShortcut.unregisterAll(); if (scanner) scanner.stop(); if (sensors) sensors.stop(); });
   app.on('window-all-closed', () => app.quit());

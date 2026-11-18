@@ -7,6 +7,7 @@ const MENU_TABS = [
   { id: 'foes', label: 'GEGNER' },
   { id: 'scenes', label: 'SZENEN' },
   { id: 'alarm', label: 'WECKER' },
+  { id: 'news', label: 'NEWS' },
   { id: 'cast', label: 'FIGUREN' },
   { id: 'system', label: 'SYSTEM' },
 ];
@@ -49,10 +50,17 @@ class UI {
     Sound.play('calib_tick', 0.4);
   }
   place() {
-    if (!this.menu) return;
+    if (!this.menu || this.dragging) return;
     const { x, y } = this.pos;
     const w = this.menu.offsetWidth, h = this.menu.offsetHeight;
     const T = this.world.terrain;
+    const mp = this.world.settings.menuPos;
+    if (mp) {
+      // Verschobenes Menü bleibt wie ein Fenster an seinem Platz
+      this.menu.style.left = clamp(mp.x, 8, Math.max(8, T.W - w - 8)) + 'px';
+      this.menu.style.top = clamp(mp.y, 8, Math.max(8, T.H - h - 8)) + 'px';
+      return;
+    }
     let left = x + 14, top = y - h / 2;
     if (left + w > T.W - 8) left = x - w - 14;
     top = clamp(top, 8, Math.max(8, T.H - h - 8));
@@ -60,6 +68,54 @@ class UI {
     this.menu.style.left = left + 'px'; this.menu.style.top = top + 'px';
   }
   close() { if (this.menu) this.menu.classList.add('hidden'); Sound.play('calib_tick', 0.25, 0.8); }
+
+  // Erster Start: Shadepi (oder Raven) fragt, ob sie mit Windows starten sollen
+  askAutostart() {
+    const W = this.world;
+    if (W.settings.autostartAsked || W.settings.autostart || W.gaming || W.duel || document.querySelector('.askcard')) return;
+    const h = W.presentHeroes().find((x) => !x.ko) || W.heroes[0];
+    if (h) h.talk(h.name === 'shadepi' ? 'Soll ich jeden Tag mit Windows auf dich warten?' : 'Soll ich jedes Mal mit Windows hochfahren? Dann verpasst du nichts!', true);
+    const c = document.createElement('div');
+    c.className = 'askcard panel-lite interactive';
+    c.innerHTML = '<b>AUTOSTART</b><p></p><div class="btns"></div>';
+    c.querySelector('p').textContent = 'Shadepi Deskpet beim Anmelden an Windows automatisch starten? Das lässt sich jederzeit im Menü unter System oder im Tray ändern.';
+    const btns = c.querySelector('.btns');
+    const btn = (label, cls, fn) => { const b = document.createElement('button'); b.className = 'act ' + cls; b.textContent = label; b.addEventListener('click', () => { fn(); c.classList.add('out'); setTimeout(() => c.remove(), 300); }); btns.appendChild(b); };
+    btn('Ja, mit Windows starten', 'go', () => { this.bridge && this.bridge.autostart(true); if (h) setTimeout(() => h.talk(h.name === 'shadepi' ? 'Gut. Ich werde da sein.' : 'Yay! Bis morgen früh!', true), 300); });
+    btn('Nein danke', '', () => { this.api.set('autostartAsked', true); if (h) setTimeout(() => h.talk(h.name === 'shadepi' ? 'Wie du willst.' : 'Okay, dann ruf mich, wenn du mich brauchst.', true), 300); });
+    btn('Später', '', () => {});
+    this.root.appendChild(c);
+    Sound.play('calib_accept', 0.4, 1.2);
+  }
+
+  // Menü an der Kopfzeile packen und verschieben; Doppelklick setzt es zurück (öffnet wieder am Mauszeiger)
+  makeDraggable(m, handle) {
+    handle.classList.add('drag-handle');
+    handle.title = 'Ziehen zum Verschieben · Doppelklick: wieder am Mauszeiger öffnen';
+    handle.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || e.target.closest('button')) return;
+      e.preventDefault();
+      const r = m.getBoundingClientRect();
+      this.dragging = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      clearTimeout(this.leaveTimer);
+      m.classList.add('dragging');
+      const move = (ev) => {
+        const T = this.world.terrain;
+        const x = clamp(ev.clientX - this.dragging.dx, 0, T.W - m.offsetWidth);
+        const y = clamp(ev.clientY - this.dragging.dy, 0, T.H - m.offsetHeight);
+        m.style.left = x + 'px'; m.style.top = y + 'px';
+      };
+      const up = () => {
+        window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up);
+        m.classList.remove('dragging');
+        this.dragging = null;
+        this.api.set('menuPos', { x: Math.round(parseFloat(m.style.left)), y: Math.round(parseFloat(m.style.top)) });
+        Sound.play('calib_tick', 0.3, 1.4);
+      };
+      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+    });
+    handle.addEventListener('dblclick', (e) => { if (e.target.closest('button')) return; this.api.set('menuPos', null); this.place(); Sound.play('calib_tick', 0.3, 0.9); });
+  }
   get isOpen() { return this.menu && !this.menu.classList.contains('hidden'); }
 
   buildMenu() {
@@ -72,8 +128,10 @@ class UI {
       <div class="hint">Figuren mit der Maus packen und werfen · Rechtsklick auf eine Figur · Strg+Alt+P</div>`;
     new ResizeObserver(() => this.place()).observe(m);
     m.querySelector('.close').addEventListener('click', () => this.close());
+    this.makeDraggable(m, m.querySelector('.menu-head'));
     m.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => { this.tab = b.dataset.tab; this.render(); Sound.play('calib_tick', 0.3, 1.2); }));
-    m.addEventListener('mouseleave', () => { clearTimeout(this.leaveTimer); this.leaveTimer = setTimeout(() => this.close(), 2600); });
+    // Ein frei platziertes Menü schließt nicht mehr von selbst
+    m.addEventListener('mouseleave', () => { clearTimeout(this.leaveTimer); if (!this.world.settings.menuPos && !this.dragging) this.leaveTimer = setTimeout(() => this.close(), 2600); });
     m.addEventListener('mouseenter', () => clearTimeout(this.leaveTimer));
     this.root.appendChild(m);
     this.menu = m;
@@ -113,7 +171,7 @@ class UI {
       card('Chrome Jackal', 'Boss', this.icon('foe', 'jackal'), () => D.startEvent('jackal'), 'boss');
     } else if (this.tab === 'scenes') {
       card('Dojo', 'Kämpfe selbst gegen Shadepi · WASD, Maus, Controller', null, () => { this.close(); W.dojo && W.dojo.open(); }, 'text dojo');
-      for (const id of ['drohnen', 'schwarm', 'viren', 'gang', 'bots', 'kenzo', 'training', 'luke', 'system', 'besuch', 'sparring', 'plaudern', 'ball', 'blick', 'bluete', 'wechsel']) card(EVENT_LABELS[id], '', null, () => D.startEvent(id), 'text');
+      for (const id of ['drohnen', 'schwarm', 'viren', 'gang', 'bots', 'kenzo', 'training', 'luke', 'system', 'news', 'besuch', 'sparring', 'plaudern', 'ball', 'blick', 'bluete', 'wechsel']) card(EVENT_LABELS[id], '', null, () => D.startEvent(id), 'text');
       card('Alles aufräumen', 'Gegner & Spielzeug weg', null, () => W.clearAll(), 'text warn');
     } else if (this.tab === 'cast') {
       const modes = [['shadepi', 'Shadepi', 'nur er (mit Besuchen)'], ['raven', 'Raven', 'nur sie (mit Besuchen)'], ['beide', 'Beide', 'immer zusammen'], ['wechselnd', 'Abwechselnd', 'Schichtwechsel & Besuche']];
@@ -126,8 +184,59 @@ class UI {
     } else if (this.tab === 'alarm') {
       this.renderAlarm(c);
       return;
+    } else if (this.tab === 'news') {
+      this.renderNews(c);
+      return;
     }
     c.appendChild(grid);
+  }
+
+  renderNews(c) {
+    const W = this.world, s = W.settings, N = W.news;
+    const top = document.createElement('div'); top.className = 'news-top';
+    const row = (label, key, opts) => {
+      const r = document.createElement('div'); r.className = 'row radio';
+      const sp = document.createElement('span'); sp.textContent = label; r.appendChild(sp);
+      for (const [v, l] of opts) {
+        const b = document.createElement('button'); b.textContent = l; if (s[key] === v) b.className = 'on';
+        b.addEventListener('click', () => { this.api.set(key, v); setTimeout(() => this.render(), 30); });
+        r.appendChild(b);
+      }
+      top.appendChild(r);
+    };
+    row('Vorlesen', 'news', [[true, 'An'], [false, 'Aus']]);
+    row('Quellen', 'newsLang', [['de', 'Deutsch'], ['en', 'Englisch'], ['beide', 'Beide']]);
+    row('Wie oft', 'newsEvery', [['selten', 'Selten'], ['normal', 'Normal'], ['oft', 'Oft']]);
+    const acts = document.createElement('div'); acts.className = 'actions';
+    const act = (l, fn) => { const b = document.createElement('button'); b.className = 'act'; b.textContent = l; b.addEventListener('click', fn); acts.appendChild(b); };
+    act('Shadepi, lies vor!', () => { this.close(); N && N.start(); });
+    if (this.bridge) act('Aktualisieren', () => { this.bridge.refreshNews(); Sound.play('calib_tick', 0.3, 1.2); });
+    top.appendChild(acts);
+    c.appendChild(top);
+    const list = document.createElement('div'); list.className = 'news-list';
+    const items = N ? N.items.slice(0, 40) : [];
+    if (!items.length) {
+      const e = document.createElement('div'); e.className = 'news-empty';
+      e.textContent = s.news === false ? 'News sind ausgeschaltet.' : 'Noch keine Meldungen geladen – das Ordensnetz verbindet sich …';
+      list.appendChild(e);
+    }
+    for (const it of items) {
+      const b = document.createElement('div'); b.className = 'news-item' + (N.read.has(it.id) ? ' read' : '');
+      const meta = document.createElement('small'); meta.textContent = `${it.source} · ${ago(it.date)}`;
+      const t = document.createElement('span'); t.textContent = it.title;
+      const go = document.createElement('button'); go.className = 'go'; go.textContent = '↗'; go.title = 'Artikel im Browser öffnen';
+      go.addEventListener('click', (e) => { e.stopPropagation(); if (this.bridge) this.bridge.openUrl(it.link); else window.open(it.link, '_blank'); });
+      b.append(meta, t, go);
+      b.title = 'Shadepi liest diese Meldung vor';
+      b.addEventListener('click', () => { N.start(it); setTimeout(() => this.render(), 50); });
+      list.appendChild(b);
+    }
+    c.appendChild(list);
+    const st = document.createElement('div'); st.className = 'status';
+    const ok = N ? N.sources.filter((x) => x.ok).map((x) => x.name) : [];
+    const bad = N ? N.sources.filter((x) => x.ok === false).map((x) => x.name) : [];
+    st.textContent = `${N ? N.total : 0} Meldungen in der Datenbank · Quellen: ${ok.join(', ') || '–'}${bad.length ? ' · nicht erreichbar: ' + bad.join(', ') : ''}`;
+    c.appendChild(st);
   }
 
   renderSystem(c) {
@@ -155,6 +264,12 @@ class UI {
     slider('Größe', 'size', 0.45, 1.2, 0.01, (v) => Math.round((v / 0.72) * 100) + ' %');
     slider('Lautstärke', 'volume', 0, 1, 0.01, (v) => Math.round(v * 100) + ' %');
     radio('Aktivität', 'activity', [['ruhig', 'Ruhig'], ['normal', 'Normal'], ['chaos', 'Chaos']]);
+    if (this.bridge && s.canAutostart !== false) {
+      const b = document.createElement('button'); b.className = 'toggle' + (s.autostart ? ' on' : '');
+      b.innerHTML = `<span>Mit Windows starten</span><b>${s.autostart ? 'AN' : 'AUS'}</b>`;
+      b.addEventListener('click', () => { this.bridge.autostart(!W.settings.autostart); });
+      wrap.appendChild(b);
+    }
     toggle('Kino-Effekte', 'cinematic');
     toggle('Bildschirmschäden', 'screenDamage');
     toggle('Fenster beklettern', 'climbWindows');
