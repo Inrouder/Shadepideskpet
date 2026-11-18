@@ -54,6 +54,8 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # Jede Version braucht einen Abschnitt in CHANGELOG.md (wird Release-Text und Startseite)
+          node tools/release-info.js notes release-notes.md
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ] && ! gh release view "v$VERSION" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "publish=always" >> "$GITHUB_OUTPUT"; echo "Neue Version v$VERSION wird veröffentlicht."
           else
@@ -88,6 +90,34 @@ jobs:
           Write-Output $res2.renderer
           if ($res2.views -ne 1 -or $res2.viewsVisible -ne 1) { throw "Monitorfenster fehlt ($($res2.views)/$($res2.viewsVisible))" }
           if ($res2.renderer.screens -ne 2 -or $res2.renderer.views -ne 1) { throw "Renderer kennt den zweiten Monitor nicht: $($res2.renderer | ConvertTo-Json -Compress) $($res2.rendererError)" }
+
+      - name: Release-Texte und Startseite aktualisieren
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          R="${{ github.repository }}"
+          VERSION=${{ steps.ver.outputs.version }}
+          # Release-Texte aus CHANGELOG.md: aktuelle Version immer, ältere nur, wenn sie noch leer sind
+          for V in $(node tools/release-info.js versions); do
+            ID=$(gh api "repos/$R/releases/tags/v$V" -q .id 2>/dev/null) || continue
+            BODY=$(gh api "repos/$R/releases/$ID" -q .body)
+            if [ -z "$BODY" ] || [ "$V" = "$VERSION" ]; then
+              node tools/release-info.js notes notes-$V.md "$V"
+              TITLE=$(node tools/release-info.js title "$V")
+              LATEST=false; [ "$V" = "$VERSION" ] && LATEST=true
+              gh api -X PATCH "repos/$R/releases/$ID" -F body=@notes-$V.md -f name="Shadepi Deskpet $V${TITLE:+ · $TITLE}" -f make_latest=$LATEST -q .name
+            fi
+          done
+          # Kasten „Neueste Version“ auf der Startseite
+          node tools/release-info.js readme
+          if ! git diff --quiet README.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "README: neueste Version $VERSION [skip ci]" README.md
+            git pull --rebase origin main && git push origin HEAD:main || echo "::warning::README konnte nicht automatisch aktualisiert werden"
+          fi
 
       - uses: actions/upload-artifact@v4
         with:

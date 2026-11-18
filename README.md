@@ -1,6 +1,22 @@
 # Shadepi Deskpet
 
+[![Neueste Version](https://img.shields.io/github/v/release/Inrouder/Shadepideskpet?label=Neueste%20Version&color=ff3150)](https://github.com/Inrouder/Shadepideskpet/releases/latest) [![Windows-Build](https://github.com/Inrouder/Shadepideskpet/actions/workflows/build.yml/badge.svg)](https://github.com/Inrouder/Shadepideskpet/actions/workflows/build.yml)
+
 Ein Desktop-Maskottchen im Stil von **[ShadepiRPG](https://github.com/Inrouder/ShadepiRPG)**: **Shadepi** und **Raven** leben auf deinem Bildschirm. Sie laufen über die Taskleiste, klettern an echten Fenstern hoch, stehen auf Titelleisten und fahren mit, wenn du ein Fenster verschiebst. Ab und zu greifen Drohnen, Datenviren, Cyberpunk-Gangs, Kampfbots oder sogar Bosse an. Alles läuft vollautomatisch und mit Kino-Inszenierung: Letterbox-Balken, Titelkarten, Zeitlupe beim letzten Treffer, Kamerawackeln und Trefferstopps.
+
+<!-- neueste-version:start (wird beim Veröffentlichen automatisch aktualisiert) -->
+> ### ⬇️ Neueste Version: [1.6.0](https://github.com/Inrouder/Shadepideskpet/releases/tag/v1.6.0) · 18.11.2026 · NEON KOMBAT
+>
+> **[Installer herunterladen](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.6.0/Shadepi-Deskpet-1.6.0-Setup.exe)** (mit automatischen Updates) · **[Portable Version](https://github.com/Inrouder/Shadepideskpet/releases/download/v1.6.0/Shadepi-Deskpet-1.6.0-portable.exe)** (ohne Installation) · [alle Versionen](https://github.com/Inrouder/Shadepideskpet/releases) · [Änderungen](CHANGELOG.md)
+>
+> - **Dojo mit 13 Kämpfern:** neben den vier Ordensbrüdern jetzt auch Raven, Kenzō, Chrome Jackal, Punk Rot/Grün/Violett/Ocker und Wache Violett/Cyan – jeweils mit eigener Spezialtechnik (Hack-Impuls, Drachenhagel, Chromfaust, Violettplasma, Salve …).
+> - **Shadepi kämpft im Dojo mit seinen neuen Arcade-Posen:** Block, Tritt, Spezialangriff, Siegerpose und liegender K.O.
+> - **Neue Kämpferauswahl** mit großer, animierter Vorschau; Schwierigkeit per Q/Tab bzw. LB/RB.
+> - **Desktop im NEON-KOMBAT-Stil:** Shadepi und Raven nehmen im Kampf die neuen Posen ein; Punks, Wachen und Jackal schlagen, treten, blocken, setzen Spezialtechniken ein und gehen richtig K.O.
+> - **Begleiter:** Ravens Drohne schießt mit, Shadepis Nanitenschwarm kreist um ihn und sticht zu.
+> - **Neues Ereignis:** Kenzō fordert Shadepi zum Sparring heraus.
+> - Treffer- und EMP-Effekte aus dem neuen Effektblatt; Arcade-Stil und Begleiter lassen sich abschalten.
+<!-- neueste-version:end -->
 
 ![Drohnenschwarm: Raven übernimmt eine Drohne](docs/vorschau-drohnen.png)
 
@@ -102,7 +118,7 @@ Startest du ein Spiel, legt sich das Maskottchen komplett schlafen: Das Overlay 
 
 Die installierte Version (Setup) sucht beim Start und alle 6 Stunden nach einer neuen Version, lädt sie im Hintergrund und installiert sie beim nächsten Neustart. Raven meldet das Update und zeigt den Download-Fortschritt. Die portable EXE meldet neue Versionen und öffnet den Download. Manuell: Menü → System → „Nach Updates suchen“ oder im Tray-Menü.
 
-Neue Versionen entstehen automatisch: Wird `version` in `package.json` erhöht und nach `main` gepusht, baut der Workflow das Programm und veröffentlicht es als GitHub-Release.
+Neue Versionen entstehen automatisch: Wird `version` in `package.json` erhöht, ein passender Abschnitt in [`CHANGELOG.md`](CHANGELOG.md) ergänzt und nach `main` gepusht, baut der Workflow das Programm und veröffentlicht es als GitHub-Release. Der Abschnitt wird zum Release-Text, und der Kasten **„Neueste Version“** oben auf dieser Seite wird automatisch mit den neuen Download-Links aktualisiert (`tools/release-info.js`). Ohne Changelog-Abschnitt bricht der Build ab, damit keine Version ohne Beschreibung erscheint.
 
 ## Bedienung
 
