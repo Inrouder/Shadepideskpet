@@ -2,6 +2,11 @@
 
 Die neueste Version steht oben. Der Abschnitt einer Version wird beim Veröffentlichen automatisch als Release-Text übernommen und auf der Startseite des Repos angezeigt.
 
+## 1.9.1 · 19.11.2026 · Richtig laufen
+
+- **Laufanimation neu:** Die Kämpfer haben jetzt echte Zwischenschritte. Bisher gab es nur zwei Ausfallschritte – Shadepi glitt im Dojo mit gespreizten Beinen über den Boden und wechselte dann ruckartig das Bein. Neu: Schritt → Zwischenschritt (Beine unter dem Körper) → Schritt → Zwischenschritt, mit leichtem Heben und Senken des Körpers. Die Zwischenschritte entstehen beim Bauen der Grafiken aus Oberkörper des Schrittbilds und Beinen der Bereitpose (`tools/build_walk.py`).
+- Langsame Figuren laufen mit Mindesttempo weiter, statt im Ausfallschritt stehen zu bleiben.
+
 ## 1.9.0 · 19.11.2026 · Der Weg des Drachen
 
 - **The Real Dragon deutlich schwerer:** Auf **Mittel** hat Shadepi mehr Leben, trifft härter, reagiert schneller, feuert mehr Ki-Kugeln und die Drachenwelle öfter; im Finale musst du schneller hämmern.

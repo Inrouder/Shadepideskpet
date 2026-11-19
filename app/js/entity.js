@@ -90,7 +90,8 @@ class Entity {
       }
     }
     // Schrittzähler für die Laufanimation (ein Schrittbild je ~34 Einheiten Weg)
-    if (this.ground) this.stepPhase = (this.stepPhase || 0) + Math.abs(this.vx) * dt / (34 * (this.world.u || 1));
+    // Mindesttakt 5 Bilder/s, damit langsame Figuren nicht im Ausfallschritt stehen bleiben
+    if (this.ground) { const sp = Math.abs(this.vx); this.stepPhase = (this.stepPhase || 0) + (sp > 12 ? Math.max(sp / (WALK_UNIT * (this.world.u || 1)), 5) : 0) * dt; }
     if (!this.ground) {
       this.airTime += dt;
       this.vy += GRAVITY * this.gravity * dt;

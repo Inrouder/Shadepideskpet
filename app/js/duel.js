@@ -186,7 +186,7 @@ class Brother extends Entity {
     if (this.dashT > 0) { o.tint = this.def.color; o.tintAmt = 0.25; }
     if (this.def.arcade) {
       const fr = this.arcadeFrame();
-      drawArcade(ctx, this.who, fr, x, y, S, { ...o, flip: f < 0, bob: fr === AP.walkA || fr === AP.walkB ? arcadeBob(this, this.u) : 0 });
+      drawArcade(ctx, this.who, fr, x, y, S, { ...o, flip: f < 0, bob: isStepFrame(fr) && this.ground ? arcadeBob(this, this.u) : 0 });
       if (this.blockT > 0) this.drawGuard(ctx);
       return;
     }

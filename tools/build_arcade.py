@@ -105,6 +105,12 @@ def main(src: Path) -> None:
     manifest["warriors"] = pack_brothers(src, actors)
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1))
     (OUT / "manifest.js").write_text("window.PET_MANIFEST = " + json.dumps(manifest, ensure_ascii=False) + ";\n")
+    # Zwischenschritte für die Laufanimation (eigenes Blatt, Bilder 16/17)
+    manifest["arcade"].pop("baseSheets", None)
+    (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1))
+    import build_walk
+    build_walk.main()
+    manifest = json.loads((OUT / "manifest.json").read_text())
     size = sum(p.stat().st_size for p in (OUT / "arcade").glob("*.png"))
     print(f"Arcade: {len(manifest['arcade']['fighters'])} Kämpfer in {manifest['arcade']['sheets']} Texturen, {size / 1e6:.1f} MB")
 

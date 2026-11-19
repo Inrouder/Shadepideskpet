@@ -304,7 +304,7 @@ class StreetEnemy extends Enemy {
       o.flip = this.facing < 0;
       if (this.dragged) { o.rot = this.swing || 0; o.pivotY = 78 * this.u; }
       const fr = this.arcadeFrame();
-      if ((fr === AP.walkA || fr === AP.walkB) && this.ground) o.bob = arcadeBob(this, this.u);
+      if (isStepFrame(fr) && this.ground) o.bob = arcadeBob(this, this.u);
       drawArcade(ctx, this.sprite, fr, this.x, this.y, S, o);
       this.drawHp(ctx);
       return;
